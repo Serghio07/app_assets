@@ -757,6 +757,59 @@ class ApiService {
     }
   }
 
+  /// ✅ NUEVO: Procesar RFID con validación completa en el backend
+  /// Este método REEMPLAZA la lógica que estaba en el frontend
+  /// El backend hace:
+  /// - Búsqueda del activo
+  /// - Validación de duplicados
+  /// - Validación de ubicación
+  /// - Logging completo
+  /// - Retorna información completa del activo
+  Future<RfidResponse> procesarRfid({
+    required int inventarioId,
+    required String rfidUid,
+    int? rssi,
+    int? antennaId,
+    String? tid,
+  }) async {
+    _log('✅ NUEVO ENDPOINT: Procesando RFID $rfidUid en inventario $inventarioId');
+    
+    final body = {
+      'rfid_uid': rfidUid,
+      if (rssi != null) 'rssi': rssi,
+      if (antennaId != null) 'antenna_id': antennaId,
+      if (tid != null) 'tid': tid,
+    };
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/inventarios/$inventarioId/procesar-rfid'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+
+    _log('RFID: Status Code: ${response.statusCode}');
+    _log('RFID: Response Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final rfidResponse = RfidResponse.fromJson(jsonDecode(response.body));
+      
+      if (rfidResponse.success) {
+        _logSuccess(
+          'RFID: ${rfidResponse.mensaje} - '
+          '${rfidResponse.esDuplicado == true ? "DUPLICADO (${rfidResponse.vecesEscaneado}x)" : "NUEVO"} - '
+          'Tiempo: ${rfidResponse.tiempoProcesamiento}ms'
+        );
+      } else {
+        _logError('RFID: ${rfidResponse.mensaje} - Error: ${rfidResponse.errorTipo}');
+      }
+      
+      return rfidResponse;
+    } else {
+      _logError('RFID: Error ${response.statusCode}: ${response.body}');
+      throw Exception('Error al procesar RFID: ${response.body}');
+    }
+  }
+
   /// Cerrar inventario y procesar resultados
   Future<Inventario> cerrarInventario(int inventarioId) async {
     _log('INVENTARIO: Cerrando inventario $inventarioId');

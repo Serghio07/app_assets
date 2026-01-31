@@ -34,17 +34,16 @@ class _EscaneoScreenState extends State<EscaneoScreen> with SingleTickerProvider
   
   // Estado de escaneo
   final List<RfidTag> _tagsLeidos = [];
-  final Set<String> _tagsUnicos = {};
+  final Set<String> _tagsUnicos = {}; // Solo para UI, no para validación
   StreamSubscription<RfidTag>? _tagSubscription;
   bool _isScanning = true;
   bool _isFinalizando = false;
   
-  // Activos de la ubicación
-  List<Activo> _activos = [];
-  bool _isLoadingActivos = true;
+  // ✅ SIMPLIFICADO: Ya NO cargamos todos los activos
+  // El backend hace la búsqueda
   
-  // Map para rastrear activos detectados (rfidUid -> Activo)
-  final Map<String, Activo> _activosDetectados = {};
+  // Map para rastrear activos detectados (rfidUid -> ActivoInfo del backend)
+  final Map<String, ActivoInfo> _activosDetectados = {};
   
   // Control de vista (pestañas)
   late TabController _tabController;
@@ -65,8 +64,8 @@ class _EscaneoScreenState extends State<EscaneoScreen> with SingleTickerProvider
     debugPrint('🚀 [ESCANEO] initState ejecutado!');
     debugPrint('🔗 [ESCANEO] Servicio Bluetooth (singleton): ${_bluetoothService.hashCode}');
     
-    // Crear tab controller para 2 pestañas
-    _tabController = TabController(length: 2, vsync: this);
+    // Crear tab controller para 1 pestaña (solo tags)
+    _tabController = TabController(length: 1, vsync: this);
     
     // Configurar animación de pulso para el contador
     _pulseController = AnimationController(
@@ -77,33 +76,15 @@ class _EscaneoScreenState extends State<EscaneoScreen> with SingleTickerProvider
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     
-    // Cargar activos de la ubicación
-    _loadActivos();
+    // ✅ ELIMINADO: Ya NO cargamos activos al frontend
+    // _loadActivos(); ← REMOVIDO
     
     // Iniciar escucha de tags
     _startListening();
   }
 
-  /// Cargar activos de la ubicación desde el backend
-  Future<void> _loadActivos() async {
-    try {
-      debugPrint('📦 Cargando activos de ubicación ${widget.ubicacionId}...');
-      
-      final activos = await _apiService.getActivosPorUbicacion(
-        empresaId: widget.empresaId.toString(),
-        ubicacionId: widget.ubicacionId.toString(),
-      );
-      
-      setState(() {
-        _activos = activos;
-        _isLoadingActivos = false;
-        debugPrint('✅ ${_activos.length} activos cargados');
-      });
-    } catch (e) {
-      debugPrint('❌ Error cargando activos: $e');
-      setState(() => _isLoadingActivos = false);
-    }
-  }
+  // ✅ REMOVIDO: Ya NO cargamos activos en el frontend
+  // Future<void> _loadActivos() async { ... } ← ELIMINADO COMPLETO
 
   void _startListening() {
     debugPrint('🎧 [ESCANEO] Iniciando listener de tags...');
@@ -151,92 +132,17 @@ class _EscaneoScreenState extends State<EscaneoScreen> with SingleTickerProvider
     }
     
     setState(() {
-      // Verificar si es tag nuevo
+      // Verificar si es tag nuevo (solo para UI)
       final isNew = !_tagsUnicos.contains(tag.epc);
       
       if (isNew) {
         _tagsUnicos.add(tag.epc);
         _tagsLeidos.insert(0, tag);
         
-        debugPrint('📋 [ESCANEO] Buscando coincidencia entre ${_activos.length} activos...');
-        debugPrint('📋 [ESCANEO] Tag leído: [${tag.epc}]');
-        
-        // Contar activos con RFID
-        final activosConRfid = _activos.where((a) => a.rfidUid != null && a.rfidUid!.isNotEmpty).length;
-        debugPrint('📋 [ESCANEO] Activos con RFID: $activosConRfid/${_activos.length}');
-        
-        // Buscar activo que coincida con este RFID
-        final activoDetectado = _activos.firstWhere(
-          (activo) {
-            final rfidActivo = activo.rfidUid?.toUpperCase().trim() ?? '';
-            final rfidTag = tag.epc.toUpperCase().trim();
-            
-            if (rfidActivo.isNotEmpty) {
-              debugPrint('   ✓ Comparando: [$rfidTag] vs [$rfidActivo] (${activo.codigoInterno})');
-            }
-            
-            // MATCH PARCIAL: BTR lee 11 bytes (22 chars), DB puede tener 12+ bytes (24+ chars)
-            // Comparar: 
-            // 1. Coincidencia exacta
-            // 2. Si uno es más largo, verificar si el más corto está al final del más largo
-            if (rfidActivo == rfidTag) {
-              return true; // Coincidencia exacta
-            }
-            
-            // Si DB es más largo, verificar si termina con el tag leído
-            if (rfidActivo.length > rfidTag.length && rfidActivo.endsWith(rfidTag)) {
-              debugPrint('   ✅ MATCH PARCIAL (sufijo): DB=$rfidActivo contiene Tag=$rfidTag');
-              return true;
-            }
-            
-            // Si tag es más largo, verificar si termina con el RFID del DB
-            if (rfidTag.length > rfidActivo.length && rfidTag.endsWith(rfidActivo)) {
-              debugPrint('   ✅ MATCH PARCIAL (sufijo): Tag=$rfidTag contiene DB=$rfidActivo');
-              return true;
-            }
-            
-            return false;
-          },
-          orElse: () => Activo(
-            id: '',
-            empresaId: '',
-            codigoInterno: '',
-          ),
-        );
-        
-        // Guardar activo detectado si existe
-        if (activoDetectado.id.isNotEmpty) {
-          _activosDetectados[tag.epc] = activoDetectado;
-          debugPrint('✅ [ESCANEO] Activo detectado: ${activoDetectado.codigoInterno}');
-          
-          // Mostrar notificación visual
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text('✅ ${activoDetectado.codigoInterno} detectado')),
-                ],
-              ),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 1),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          );
-        } else {
-          debugPrint('❌ [ESCANEO] Tag NO RECONOCIDO: ${tag.epc}');
-          debugPrint('❌ [ESCANEO] Este tag no está asignado a ningún activo en esta ubicación');
-        }
-        
         // Animar contador
         _pulseController.forward().then((_) => _pulseController.reverse());
-        
-        // Enviar al backend
-        _enviarLectura(tag);
       } else {
-        // Actualizar contador del tag existente
+        // Actualizar contador del tag existente (solo UI)
         final index = _tagsLeidos.indexWhere((t) => t.epc == tag.epc);
         if (index >= 0) {
           _tagsLeidos[index].readCount++;
@@ -246,23 +152,87 @@ class _EscaneoScreenState extends State<EscaneoScreen> with SingleTickerProvider
         }
       }
     });
+    
+    // ✅ NUEVO: Enviar al backend para procesamiento completo
+    _procesarRfidEnBackend(tag);
   }
 
-  Future<void> _enviarLectura(RfidTag tag) async {
+  /// ✅ NUEVO MÉTODO: Envía RFID al backend y recibe respuesta completa
+  /// El backend hace TODA la lógica:
+  /// - Búsqueda del activo
+  /// - Validación de duplicados
+  /// - Validación de ubicación
+  /// - Logging
+  Future<void> _procesarRfidEnBackend(RfidTag tag) async {
     try {
-      await _apiService.enviarLecturaRfid(
+      // Llamar al nuevo endpoint
+      final respuesta = await _apiService.procesarRfid(
         inventarioId: widget.inventarioId,
         rfidUid: tag.epc,
-        tid: tag.tid,
         rssi: tag.rssi,
         antennaId: tag.antenna,
-        usuarioId: widget.usuarioId,
+        tid: tag.tid,
       );
+      
+      if (!mounted) return;
+      
+      setState(() {
+        if (respuesta.success && respuesta.activoEncontrado) {
+          // ✅ Activo encontrado - Guardar info del backend
+          if (respuesta.activo != null) {
+            _activosDetectados[tag.epc] = respuesta.activo!;
+          }
+          
+          // Mostrar notificación
+          final mensaje = respuesta.esDuplicado == true
+              ? '🔄 ${respuesta.activo?.codigoInterno ?? tag.epc} (ya escaneado ${respuesta.vecesEscaneado}x)'
+              : '✅ ${respuesta.activo?.codigoInterno ?? tag.epc}';
+          
+          _mostrarNotificacion(mensaje, Colors.green);
+          
+          // Mostrar warnings si existen
+          if (respuesta.tieneWarnings) {
+            for (var warning in respuesta.warnings) {
+              debugPrint('⚠️ WARNING: $warning');
+            }
+          }
+        } else {
+          // ❌ Error o no encontrado
+          _mostrarNotificacion(
+            respuesta.mensaje,
+            respuesta.errorTipo == 'DUPLICATE_RFID' ? Colors.orange : Colors.red,
+          );
+        }
+      });
     } catch (e) {
-      debugPrint('Error enviando lectura: $e');
-      // No mostrar error al usuario para no interrumpir el escaneo
+      debugPrint('❌ Error procesando RFID en backend: $e');
+      // No interrumpir el escaneo por errores de red
     }
   }
+
+  void _mostrarNotificacion(String mensaje, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              color == Colors.green ? Icons.check_circle : Icons.error_outline,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(mensaje)),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  // ✅ REMOVIDO: Ya no se necesita _enviarLectura() simple
+  // El backend maneja todo con procesarRfid()
 
   void _toggleScanning() {
     setState(() {
@@ -541,18 +511,12 @@ class _EscaneoScreenState extends State<EscaneoScreen> with SingleTickerProvider
           // Estado de escaneo
           _buildScanningIndicator(),
           
-          // Pestañas: Tags leídos vs Activos
+          // Contadores (reemplaza pestañas)
           _buildTabBar(),
           
-          // Contenido de pestañas
+          // Lista de tags leídos
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildTagsList(),
-                _buildActivosList(),
-              ],
-            ),
+            child: _buildTagsList(),
           ),
           
           // Botón de finalizar
@@ -808,205 +772,81 @@ class _EscaneoScreenState extends State<EscaneoScreen> with SingleTickerProvider
   Widget _buildTabBar() {
     return Container(
       color: Colors.white,
-      child: TabBar(
-        controller: _tabController,
-        tabs: [
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.nfc, size: 18),
-                const SizedBox(width: 8),
-                const Text('Tags Leídos'),
-                Container(
-                  margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          // Contador de tags únicos leídos
+          Row(
+            children: [
+              const Icon(Icons.nfc, size: 20, color: primaryColor),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Tags Leídos',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
                   ),
-                  child: Text(
+                  Text(
                     _tagsUnicos.length.toString(),
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: primaryColor,
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.check_circle, size: 18),
-                const SizedBox(width: 8),
-                const Text('Activos'),
-                Container(
-                  margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${_activosDetectados.length}/${_activos.length}',
-                    style: const TextStyle(
+          
+          // Divisor vertical
+          Container(
+            width: 1,
+            height: 50,
+            color: Colors.grey[300],
+          ),
+          
+          // Contador de activos detectados (desde backend)
+          Row(
+            children: [
+              const Icon(Icons.check_circle, size: 20, color: Colors.green),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Activos Detectados',
+                    style: TextStyle(
                       fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  Text(
+                    _activosDetectados.length.toString(),
+                    style: const TextStyle(
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.green,
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
         ],
-        indicatorColor: primaryColor,
-        labelColor: primaryColor,
-        unselectedLabelColor: Colors.grey,
       ),
     );
   }
 
-  Widget _buildActivosList() {
-    if (_isLoadingActivos) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Cargando activos...',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_activos.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.inbox,
-              size: 64,
-              color: Colors.grey[300],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No hay activos en esta ubicación',
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: _activos.length,
-      itemBuilder: (context, index) {
-        final activo = _activos[index];
-        final isDetectado = _activosDetectados.values
-            .any((a) => a.id == activo.id);
-        
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            color: isDetectado 
-                ? Colors.green.withValues(alpha: 0.05)
-                : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDetectado
-                  ? Colors.green.withValues(alpha: 0.3)
-                  : Colors.grey.withValues(alpha: 0.2),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isDetectado
-                    ? Colors.green.withValues(alpha: 0.1)
-                    : Colors.grey.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                Icons.inventory_2,
-                color: isDetectado ? Colors.green : Colors.grey,
-                size: 24,
-              ),
-            ),
-            title: Text(
-              activo.codigoInterno,
-              style: TextStyle(
-                fontWeight: isDetectado ? FontWeight.bold : FontWeight.normal,
-                color: isDetectado ? Colors.green : Colors.black,
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (activo.tipoActivo != null)
-                  Text(
-                    activo.tipoActivo!.nombre,
-                    style: const TextStyle(fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                if (activo.rfidUid != null)
-                  Text(
-                    'RFID: ${activo.rfidUid}',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-            trailing: isDetectado
-                ? Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                      size: 24,
-                    ),
-                  )
-                : const Icon(
-                    Icons.check_circle_outline,
-                    color: Colors.grey,
-                  ),
-          ),
-        );
-      },
-    );
-  }
+  // ✅ REMOVIDO: _buildActivosList() - Ya no usamos pestañas
+  // El backend maneja la búsqueda de activos
 
   Widget _buildTagsList() {
     if (_tagsLeidos.isEmpty) {
