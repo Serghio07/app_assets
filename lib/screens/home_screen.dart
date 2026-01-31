@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../services/bluetooth_service.dart';
+import '../services/bluetooth_rfid_service.dart';
 import 'inventario_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -14,9 +14,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   static const Color primaryColor = Color(0xFF00BCD4);
   static const Color secondaryColor = Color(0xFF00838F);
-  static const Color accentColor = Color(0xFF06B6D4);
   
-  final BluetoothService _bluetoothService = BluetoothService();
+  final BluetoothRfidService _bluetoothService = BluetoothRfidService();
 
   @override
   void dispose() {
@@ -302,6 +301,102 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 20),
 
+                      // Card de conexión Bluetooth
+                      ListenableBuilder(
+                        listenable: _bluetoothService,
+                        builder: (context, _) {
+                          final isConnected = _bluetoothService.isConnected;
+                          final isConnecting = _bluetoothService.isConnecting;
+                          
+                          return GestureDetector(
+                            onTap: _showBluetoothDialog,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: isConnected
+                                      ? [const Color(0xFF10B981), const Color(0xFF059669)]
+                                      : [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (isConnected ? const Color(0xFF10B981) : const Color(0xFF3B82F6))
+                                        .withValues(alpha: 0.3),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: isConnecting
+                                        ? const SizedBox(
+                                            width: 28,
+                                            height: 28,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 3,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : Icon(
+                                            isConnected
+                                                ? Icons.bluetooth_connected
+                                                : Icons.bluetooth_searching,
+                                            color: Colors.white,
+                                            size: 28,
+                                          ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          isConnected
+                                              ? 'Lector Conectado'
+                                              : 'Conectar Lector RFID',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          isConnected
+                                              ? _bluetoothService.connectedDeviceName ?? 'BTR'
+                                              : 'Toca para buscar dispositivos BTR',
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.85),
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    isConnected
+                                        ? Icons.check_circle
+                                        : Icons.arrow_forward_ios,
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                    size: isConnected ? 28 : 20,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
                       // Botón Nuevo Inventario - Card principal
                       _ModernActionCard(
                         icon: Icons.inventory_2_rounded,
@@ -580,7 +675,7 @@ class _ModernActionCard extends StatelessWidget {
 // ==================== BLUETOOTH CONNECTION SHEET ====================
 
 class _BluetoothConnectionSheet extends StatefulWidget {
-  final BluetoothService bluetoothService;
+  final BluetoothRfidService bluetoothService;
 
   const _BluetoothConnectionSheet({required this.bluetoothService});
 
@@ -592,60 +687,93 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
   static const Color primaryColor = Color(0xFF00BCD4);
   static const Color secondaryColor = Color(0xFF00838F);
   
-  bool _isLoading = true;
+  bool _isScanning = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _initBluetooth();
+    _startScan();
   }
 
-  Future<void> _initBluetooth() async {
+  Future<void> _startScan() async {
     setState(() {
-      _isLoading = true;
+      _isScanning = true;
       _error = null;
     });
 
     try {
-      debugPrint('🔵 [HOME] Iniciando búsqueda de Bluetooth...');
-      final isEnabled = await widget.bluetoothService.isBluetoothEnabled();
-      if (!isEnabled) {
-        debugPrint('🔴 [HOME] Bluetooth no habilitado, solicitando...');
-        final enabled = await widget.bluetoothService.requestEnableBluetooth();
-        if (!enabled) {
-          setState(() {
-            _error = 'Bluetooth no está habilitado. Habilítalo en la configuración del dispositivo.';
-            _isLoading = false;
-          });
-          debugPrint('🔴 [HOME] Usuario rechazó habilitar Bluetooth');
-          return;
-        }
-      }
-
-      debugPrint('🟢 [HOME] Bluetooth habilitado, buscando dispositivos...');
-      final devices = await widget.bluetoothService.getPairedDevices();
-      setState(() => _isLoading = false);
+      debugPrint('🔵 [HOME] Iniciando escaneo BLE real...');
       
-      debugPrint('🟢 [HOME] Se encontraron ${devices.length} dispositivos');
-      for (var device in devices) {
-        debugPrint('   - ${device['name']} (${device['address']})');
+      // Escanear dispositivos reales con flutter_blue_plus
+      await widget.bluetoothService.scanDevices(
+        timeout: const Duration(seconds: 10),
+      );
+      
+      if (mounted) {
+        setState(() => _isScanning = false);
+        debugPrint('🟢 [HOME] Escaneo completado - ${widget.bluetoothService.discoveredDevices.length} dispositivos encontrados');
       }
     } catch (e) {
-      setState(() {
-        _error = 'Error al buscar dispositivos: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Error al escanear: $e';
+          _isScanning = false;
+        });
+      }
       debugPrint('🔴 [HOME] Error: $e');
+    }
+  }
+
+  Future<void> _connectToDevice(BluetoothDeviceInfo device) async {
+    debugPrint('🔵 [HOME] Conectando a ${device.name}...');
+    
+    final success = await widget.bluetoothService.connect(device);
+    
+    if (success && mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.bluetooth_connected, color: Colors.white),
+              const SizedBox(width: 12),
+              Text('Conectado a ${device.name}'),
+            ],
+          ),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Text('Error al conectar: ${widget.bluetoothService.lastError ?? 'Desconocido'}'),
+            ],
+          ),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.55,
+      initialChildSize: 0.65,
       minChildSize: 0.3,
-      maxChildSize: 0.85,
+      maxChildSize: 0.9,
       expand: false,
       builder: (context, scrollController) {
         return Container(
@@ -689,7 +817,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                         ],
                       ),
                       child: const Icon(
-                        Icons.bluetooth_rounded,
+                        Icons.bluetooth_searching,
                         color: Colors.white,
                         size: 28,
                       ),
@@ -700,7 +828,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Conectar Dispositivo',
+                            'Buscar Lector RFID',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -709,7 +837,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Bluetooth Classic',
+                            'Bluetooth Low Energy',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey.shade500,
@@ -718,154 +846,100 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                         ],
                       ),
                     ),
-                    if (widget.bluetoothService.isConnected)
+                    // Botón refrescar
+                    IconButton(
+                      onPressed: _isScanning ? null : _startScan,
+                      icon: _isScanning
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Estado de conexión actual
+              if (widget.bluetoothService.isConnected)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.green.shade200),
+                          color: Colors.green.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        child: const Icon(Icons.bluetooth_connected, color: Colors.green),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.check_circle, size: 16, color: Colors.green.shade600),
-                            const SizedBox(width: 4),
                             Text(
-                              'Conectado',
+                              widget.bluetoothService.connectedDeviceName ?? 'Lector RFID',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            Text(
+                              'Conectado • ${widget.bluetoothService.connectedDeviceAddress}',
                               style: TextStyle(
                                 fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.green.shade700,
+                                color: Colors.green[700],
                               ),
                             ),
                           ],
                         ),
                       ),
-                  ],
-                ),
-              ),
-
-              // Parámetro de conexión
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                      TextButton(
+                        onPressed: () async {
+                          await widget.bluetoothService.disconnect();
+                          setState(() {});
+                        },
+                        child: const Text(
+                          'Desconectar',
+                          style: TextStyle(color: Colors.red),
+                        ),
                       ),
-                      child: const Icon(Icons.settings_bluetooth, color: primaryColor, size: 20),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Parámetro de conexión',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'BTR-...............',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'monospace',
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              
-              // Verificar si la plataforma soporta Bluetooth
-              if (!widget.bluetoothService.isPlatformSupported)
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.shade50,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange.shade600),
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'Bluetooth no disponible',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'La conexión Bluetooth solo está disponible en dispositivos Android.\n\nPor favor, ejecuta la aplicación en un dispositivo Android para conectar el lector BTR.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade600,
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.android, color: Colors.green.shade600, size: 24),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Requiere Android',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF1E293B),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
-                )
-              else
-              // Contenido
+                ),
+              
+              if (widget.bluetoothService.isConnected)
+                const SizedBox(height: 16),
+              
+              // Lista de dispositivos
               Expanded(
-                child: _isLoading
+                child: _isScanning && widget.bluetoothService.discoveredDevices.isEmpty
                     ? const Center(
-                        child: CircularProgressIndicator(color: primaryColor),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(color: primaryColor),
+                            SizedBox(height: 16),
+                            Text(
+                              'Buscando dispositivos...',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Asegúrate que el lector BTR esté encendido',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
+                        ),
                       )
                     : _error != null
                         ? Center(
@@ -876,11 +950,12 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                                 const SizedBox(height: 16),
                                 Text(
                                   _error!,
+                                  textAlign: TextAlign.center,
                                   style: TextStyle(color: Colors.grey.shade600),
                                 ),
                                 const SizedBox(height: 16),
                                 ElevatedButton.icon(
-                                  onPressed: _initBluetooth,
+                                  onPressed: _startScan,
                                   icon: const Icon(Icons.refresh),
                                   label: const Text('Reintentar'),
                                   style: ElevatedButton.styleFrom(
@@ -901,14 +976,59 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
   }
 
   Widget _buildDevicesList(ScrollController scrollController) {
-    final btrDevices = widget.bluetoothService.getBtrDevices();
-    final allDevices = widget.bluetoothService.pairedDevices;
+    final devices = widget.bluetoothService.discoveredDevices;
+    
+    // Separar dispositivos BTR de otros
+    final btrDevices = devices.where((d) => d.isRfidReader).toList();
+    final otherDevices = devices.where((d) => !d.isRfidReader).toList();
+
+    if (devices.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.bluetooth_disabled,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No se encontraron dispositivos',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Asegúrate de que tu lector RFID\nesté encendido y cerca',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _startScan,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Buscar de nuevo'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return ListView(
       controller: scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       children: [
-        // Dispositivos BTR
+        // Dispositivos BTR/RFID primero
         if (btrDevices.isNotEmpty) ...[
           Row(
             children: [
@@ -922,7 +1042,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
               ),
               const SizedBox(width: 8),
               Text(
-                'Dispositivos BTR',
+                'Lectores RFID (${btrDevices.length})',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -937,57 +1057,33 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
         ],
 
         // Otros dispositivos
-        Row(
-          children: [
-            Icon(Icons.devices_other_rounded, size: 18, color: Colors.grey.shade500),
-            const SizedBox(width: 8),
-            Text(
-              'Otros dispositivos emparejados',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
+        if (otherDevices.isNotEmpty) ...[
+          Row(
+            children: [
+              Icon(Icons.devices_other_rounded, size: 18, color: Colors.grey.shade500),
+              const SizedBox(width: 8),
+              Text(
+                'Otros dispositivos (${otherDevices.length})',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        
-        if (allDevices.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Icon(Icons.bluetooth_searching, size: 48, color: Colors.grey.shade400),
-                const SizedBox(height: 12),
-                Text(
-                  'No hay dispositivos emparejados',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Empareja tu lector BTR desde la configuración de Bluetooth del dispositivo',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                ),
-              ],
-            ),
-          )
-        else
-          ...allDevices
-              .where((d) => !((d['name'] ?? '').toUpperCase().startsWith('BTR')))
-              .map((device) => _buildDeviceCard(device)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...otherDevices.map((device) => _buildDeviceCard(device)),
+        ],
         
         const SizedBox(height: 20),
       ],
     );
   }
 
-  Widget _buildDeviceCard(Map<String, String> device, {bool isRecommended = false}) {
-    final isConnected = widget.bluetoothService.connectedDeviceAddress == device['address'];
+  Widget _buildDeviceCard(BluetoothDeviceInfo device, {bool isRecommended = false}) {
+    final isConnected = widget.bluetoothService.connectedDeviceAddress == device.address;
     final isConnecting = widget.bluetoothService.isConnecting;
-    final deviceName = device['name'] ?? 'Dispositivo desconocido';
-    final deviceAddress = device['address'] ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -997,8 +1093,10 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
         border: Border.all(
           color: isConnected 
               ? primaryColor.withValues(alpha: 0.3) 
-              : const Color(0xFFE2E8F0),
-          width: isConnected ? 2 : 1,
+              : isRecommended
+                  ? Colors.orange.withValues(alpha: 0.3)
+                  : const Color(0xFFE2E8F0),
+          width: isConnected || isRecommended ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
@@ -1020,25 +1118,45 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
             borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(
-            Icons.bluetooth,
+            isRecommended ? Icons.sensors : Icons.bluetooth,
             color: isRecommended ? Colors.white : Colors.grey.shade600,
             size: 24,
           ),
         ),
         title: Text(
-          deviceName,
+          device.name,
           style: TextStyle(
             fontWeight: FontWeight.w600,
             color: isConnected ? primaryColor : const Color(0xFF1E293B),
           ),
         ),
-        subtitle: Text(
-          deviceAddress,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade500,
-            fontFamily: 'monospace',
-          ),
+        subtitle: Row(
+          children: [
+            Text(
+              device.address,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade500,
+                fontFamily: 'monospace',
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: _getRssiColor(device.rssi).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '${device.rssi} dBm',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: _getRssiColor(device.rssi),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
         trailing: isConnected
             ? Container(
@@ -1052,39 +1170,30 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
             : ElevatedButton(
                 onPressed: isConnecting
                     ? null
-                    : () async {
-                        final success = await widget.bluetoothService.connectToDevice(deviceAddress, deviceName);
-                        if (success && mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Row(
-                                children: [
-                                  const Icon(Icons.bluetooth_connected, color: Colors.white),
-                                  const SizedBox(width: 12),
-                                  Text('Conectado a $deviceName'),
-                                ],
-                              ),
-                              backgroundColor: Colors.green.shade600,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          );
-                        }
-                      },
+                    : () => _connectToDevice(device),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: Colors.white,
+                  backgroundColor: isRecommended ? primaryColor : Colors.grey.shade200,
+                  foregroundColor: isRecommended ? Colors.white : Colors.grey.shade700,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
-                child: const Text('Conectar'),
+                child: isConnecting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Conectar'),
               ),
       ),
     );
+  }
+
+  Color _getRssiColor(int rssi) {
+    if (rssi >= -50) return Colors.green;
+    if (rssi >= -70) return Colors.orange;
+    return Colors.red;
   }
 }

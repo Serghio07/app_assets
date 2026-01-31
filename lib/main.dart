@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'providers/providers.dart';
 import 'models/models.dart';
 import 'screens/screens.dart';
+import 'services/bluetooth_rfid_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -180,6 +181,36 @@ class MyApp extends StatelessWidget {
             empresa: args['empresa'] as Empresa,
             sucursal: args['sucursal'] as Sucursal,
             ubicacion: args['ubicacion'] as Ubicacion,
+          ),
+        );
+      case '/escaneo':
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => EscaneoScreen(
+            inventarioId: args['inventarioId'] as int,
+            empresaId: args['empresaId'] as int,
+            ubicacionId: args['ubicacionId'] as int,
+            ubicacionNombre: args['ubicacionNombre'] as String,
+            usuarioId: args['usuarioId'] as int?,
+          ),
+        );
+      case '/inventario':
+        final args = settings.arguments as Map<String, dynamic>;
+        final usuario = args['usuario'] as Usuario;
+        return MaterialPageRoute(
+          builder: (_) => InventarioScreen(
+            empresaId: (args['empresa'] as Empresa).id,
+            usuarioId: usuario.id,
+            usuario: usuario,
+          ),
+        );
+      case '/resultados':
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => ResultadosScreen(
+            inventarioId: args['inventarioId'] as int,
+            resultados: args['resultados'] as ResultadoInventario,
+            ubicacionNombre: args['ubicacionNombre'] as String,
           ),
         );
       default:

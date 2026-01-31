@@ -50,10 +50,17 @@ class Inventario {
   });
 
   factory Inventario.fromJson(Map<String, dynamic> json) {
+    // Función helper para convertir valores a int de forma segura
+    int _toInt(dynamic value) {
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
     return Inventario(
-      id: json['id'] ?? 0,
-      empresaId: json['empresa_id'] ?? 0,
-      ubicacionId: json['ubicacion_id'] ?? 0,
+      id: _toInt(json['id']),
+      empresaId: _toInt(json['empresa_id']),
+      ubicacionId: _toInt(json['ubicacion_id']),
       fechaInicio: json['fecha_inicio'] != null
           ? DateTime.parse(json['fecha_inicio'])
           : DateTime.now(),
@@ -161,15 +168,22 @@ class LecturaRfid {
   });
 
   factory LecturaRfid.fromJson(Map<String, dynamic> json) {
+    // Función helper para convertir valores a int de forma segura
+    int _toInt(dynamic value) {
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
     return LecturaRfid(
-      id: json['id'] ?? 0,
-      inventarioId: json['inventario_id'] ?? 0,
+      id: _toInt(json['id']),
+      inventarioId: _toInt(json['inventario_id']),
       rfidUid: json['rfid_uid'] ?? '',
       tid: json['tid'],
       rssi: json['rssi'],
       antennaId: json['antenna_id'],
       usuarioId: json['usuario_id'],
-      cantidadLecturas: json['cantidad_lecturas'] ?? 1,
+      cantidadLecturas: _toInt(json['cantidad_lecturas']),
       fechaLectura: json['fecha_lectura'] != null
           ? DateTime.parse(json['fecha_lectura'])
           : DateTime.now(),
@@ -222,9 +236,16 @@ class ResultadoActivo {
   });
 
   factory ResultadoActivo.fromJson(Map<String, dynamic> json) {
+    // Función helper para convertir valores a int de forma segura
+    int _toInt(dynamic value) {
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
     return ResultadoActivo(
-      inventarioId: json['inventario_id'] ?? 0,
-      activoId: json['activo_id'],
+      inventarioId: _toInt(json['inventario_id']),
+      activoId: json['activo_id'] != null ? _toInt(json['activo_id']) : null,
       resultado: TipoResultado.fromString(json['resultado']),
       rfidUid: json['rfid_uid'],
     );
@@ -259,13 +280,20 @@ class EstadisticasInventario {
   });
 
   factory EstadisticasInventario.fromJson(Map<String, dynamic> json) {
+    // Función helper para convertir valores a int de forma segura
+    int _toInt(dynamic value) {
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
     return EstadisticasInventario(
-      totalActivosUbicacion: json['total_activos_ubicacion'] ?? 0,
-      totalLecturasUnicas: json['total_lecturas_unicas'] ?? 0,
-      encontrados: json['encontrados'] ?? 0,
-      faltantes: json['faltantes'] ?? 0,
-      sobrantes: json['sobrantes'] ?? 0,
-      rfidsDesconocidos: json['rfids_desconocidos'] ?? 0,
+      totalActivosUbicacion: _toInt(json['total_activos_ubicacion']),
+      totalLecturasUnicas: _toInt(json['total_lecturas_unicas']),
+      encontrados: _toInt(json['encontrados']),
+      faltantes: _toInt(json['faltantes']),
+      sobrantes: _toInt(json['sobrantes']),
+      rfidsDesconocidos: _toInt(json['rfids_desconocidos']),
     );
   }
 
@@ -293,8 +321,15 @@ class ResultadoInventario {
   });
 
   factory ResultadoInventario.fromJson(Map<String, dynamic> json) {
+    // Función helper para convertir valores a int de forma segura
+    int _toInt(dynamic value) {
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
     return ResultadoInventario(
-      inventarioId: json['inventario_id'] ?? 0,
+      inventarioId: _toInt(json['inventario_id']),
       estadisticas: EstadisticasInventario.fromJson(json['estadisticas'] ?? {}),
       resultados: json['resultados'] != null
           ? (json['resultados'] as List)
@@ -329,10 +364,17 @@ class BatchResult {
   });
 
   factory BatchResult.fromJson(Map<String, dynamic> json) {
+    // Función helper para convertir valores a int de forma segura
+    int _toInt(dynamic value) {
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
     return BatchResult(
-      totalRecibidas: json['total_recibidas'] ?? 0,
-      nuevas: json['nuevas'] ?? 0,
-      actualizadas: json['actualizadas'] ?? 0,
+      totalRecibidas: _toInt(json['total_recibidas']),
+      nuevas: _toInt(json['nuevas']),
+      actualizadas: _toInt(json['actualizadas']),
       errores: json['errores'] != null
           ? List<String>.from(json['errores'])
           : [],

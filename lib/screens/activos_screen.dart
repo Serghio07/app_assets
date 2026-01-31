@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../providers/providers.dart';
 
 class ActivosScreen extends StatefulWidget {
   final Empresa empresa;
@@ -42,7 +44,6 @@ class _ActivosScreenState extends State<ActivosScreen> {
     try {
       final activos = await _apiService.getActivosPorUbicacion(
         empresaId: widget.empresa.id,
-        sucursalId: widget.sucursal.id,
         ubicacionId: widget.ubicacion.id,
       );
       setState(() {
@@ -230,20 +231,64 @@ class _ActivosScreenState extends State<ActivosScreen> {
           ],
         ),
         child: FloatingActionButton.extended(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Row(
-                  children: [
-                    Icon(Icons.info_outline_rounded, color: Colors.white),
-                    SizedBox(width: 12),
-                    Text('Iniciar escaneo RFID - Próximamente...'),
-                  ],
-                ),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          onPressed: () async {
+            // Mostrar loading
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => const Center(
+                child: CircularProgressIndicator(color: primaryColor),
               ),
             );
+
+            try {
+              // Crear inventario primero
+              final authProvider = context.read<AuthProvider>();
+              final inventarioProvider = context.read<InventarioProvider>();
+              
+              final inventario = await inventarioProvider.createInventario(
+                empresaId: int.parse(widget.empresa.id),
+                ubicacionId: int.parse(widget.ubicacion.id),
+              );
+
+              if (!mounted) return;
+              Navigator.pop(context); // Cerrar loading
+
+              // Navegar a escaneo con el inventario creado
+              Navigator.pushNamed(
+                context,
+                '/escaneo',
+                arguments: {
+                  'inventarioId': inventario.id,
+                  'empresaId': int.parse(widget.empresa.id),
+                  'ubicacionId': int.parse(widget.ubicacion.id),
+                  'ubicacionNombre': widget.ubicacion.nombre,
+                  'usuarioId': authProvider.usuario?.id != null 
+                    ? int.tryParse(authProvider.usuario!.id)
+                    : null,
+                },
+              );
+            } catch (e) {
+              if (!mounted) return;
+              Navigator.pop(context); // Cerrar loading
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.white),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text('Error al crear inventario: $e')),
+                    ],
+                  ),
+                  backgroundColor: Colors.red.shade400,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              );
+            }
           },
           icon: const Icon(Icons.qr_code_scanner_rounded),
           label: const Text('Escanear'),

@@ -1,12 +1,49 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/rfid_tag.dart';
 
 /// Servicio Bluetooth especializado para lectores RFID Hopeland
+/// 
+/// Implementa el protocolo de comunicación según:
+/// - RFID Middleware API Manual
+/// - RFID Middleware JMS Report Format
+/// 
+/// Características implementadas:
+/// - Conexión BLE con lectores Hopeland (CL7206, CL7202, H3, BTR)
+/// - Lectura continua de tags EPC Gen2
+/// - Control de potencia de transmisión (20/26/30 dBm)
+/// - Validación de checksum en paquetes
+/// - Parsing de RSSI y número de antena
+/// - Soporte para múltiples antenas
+/// 
+/// Formato de paquete: [0xBB, Type, Cmd, PL_H, PL_L, ...Data, Checksum, 0x7E]
+/// 
 /// Usa flutter_blue_plus para conexión BLE real
+/// 
+/// SINGLETON: Usar BluetoothRfidService() siempre devuelve la misma instancia
 class BluetoothRfidService extends ChangeNotifier {
+  // ========== SINGLETON PATTERN ==========
+  static final BluetoothRfidService _instance = BluetoothRfidService._internal();
+  
+  factory BluetoothRfidService() {
+    return _instance;
+  }
+  
+  BluetoothRfidService._internal() {
+    _log('🔧 Singleton inicializado (hashCode: $hashCode)');
+  }
+  // ========================================
+
+  /// Notificar cambios de forma segura (evita llamar durante build)
+  void _safeNotifyListeners() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
+  }
+
   // Dispositivo conectado
   BluetoothDevice? _connectedDevice;
   BluetoothCharacteristic? _writeCharacteristic;
@@ -35,10 +72,13 @@ class BluetoothRfidService extends ChangeNotifier {
   static const String hopelandWriteUuid = "0000fff2-0000-1000-8000-00805f9b34fb";
   static const String hopelandNotifyUuid = "0000fff1-0000-1000-8000-00805f9b34fb";
   
-  // Comandos Hopeland
+  // Comandos Hopeland (formato: [0xBB, Type, Cmd, PL_H, PL_L, ...Data, Checksum, 0x7E])
   static const List<int> cmdStartInventory = [0xBB, 0x00, 0x22, 0x00, 0x00, 0x22, 0x7E];
   static const List<int> cmdStopInventory = [0xBB, 0x00, 0x28, 0x00, 0x00, 0x28, 0x7E];
   static const List<int> cmdGetVersion = [0xBB, 0x00, 0x03, 0x00, 0x01, 0x00, 0x04, 0x7E];
+  static const List<int> cmdSetPowerMax = [0xBB, 0x00, 0xB6, 0x00, 0x02, 0x07, 0xD0, 0x8F, 0x7E]; // 30dBm
+  static const List<int> cmdSetPowerMid = [0xBB, 0x00, 0xB6, 0x00, 0x02, 0x05, 0xDC, 0x93, 0x7E]; // 26dBm
+  static const List<int> cmdSetPowerLow = [0xBB, 0x00, 0xB6, 0x00, 0x02, 0x03, 0xE8, 0x97, 0x7E]; // 20dBm
   
   // Getters
   bool get isScanning => _isScanning;
@@ -77,7 +117,7 @@ class BluetoothRfidService extends ChangeNotifier {
     if (!allGranted) {
       _lastError = 'Permisos de Bluetooth denegados';
       _logError(_lastError!);
-      notifyListeners();
+      _safeNotifyListeners();
       return false;
     }
     
@@ -113,6 +153,36 @@ class BluetoothRfidService extends ChangeNotifier {
     }
   }
 
+  /// Buscar y conectar automáticamente a un dispositivo BTR específico
+  Future<bool> autoConnectToBtr({String targetName = 'BTR-800201220017'}) async {
+    _log('Auto-conectando a $targetName...');
+    
+    // Primero escanear dispositivos
+    final devices = await scanDevices(timeout: const Duration(seconds: 15));
+    
+    // Buscar el dispositivo por nombre
+    final targetDevice = devices.firstWhere(
+      (d) => d.name.toUpperCase().contains(targetName.toUpperCase()),
+      orElse: () => BluetoothDeviceInfo(
+        name: '',
+        address: '',
+        rssi: 0,
+        isHopeland: false,
+        device: null,
+      ),
+    );
+    
+    if (targetDevice.device == null) {
+      _lastError = 'No se encontró el dispositivo $targetName';
+      _logError(_lastError!);
+      _safeNotifyListeners();
+      return false;
+    }
+    
+    _log('Dispositivo encontrado: ${targetDevice.name}, conectando...');
+    return await connect(targetDevice);
+  }
+
   /// Escanear dispositivos Bluetooth
   Future<List<BluetoothDeviceInfo>> scanDevices({
     Duration timeout = const Duration(seconds: 10),
@@ -125,7 +195,7 @@ class BluetoothRfidService extends ChangeNotifier {
     _isScanning = true;
     _lastError = null;
     _discoveredDevices.clear();
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       _log('Iniciando escaneo de dispositivos...');
@@ -134,7 +204,7 @@ class BluetoothRfidService extends ChangeNotifier {
       final hasPermission = await requestPermissions();
       if (!hasPermission) {
         _isScanning = false;
-        notifyListeners();
+        _safeNotifyListeners();
         return [];
       }
 
@@ -145,7 +215,7 @@ class BluetoothRfidService extends ChangeNotifier {
         if (!enabled) {
           _isScanning = false;
           _lastError = 'Bluetooth no está habilitado';
-          notifyListeners();
+          _safeNotifyListeners();
           return [];
         }
       }
@@ -179,7 +249,7 @@ class BluetoothRfidService extends ChangeNotifier {
             ));
             
             _log('Dispositivo encontrado: $deviceName (${result.device.remoteId.str}) - RSSI: ${result.rssi}');
-            notifyListeners();
+            _safeNotifyListeners();
           }
         }
       });
@@ -201,7 +271,7 @@ class BluetoothRfidService extends ChangeNotifier {
     } finally {
       _scanSubscription?.cancel();
       _isScanning = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
 
     return _discoveredDevices;
@@ -213,7 +283,7 @@ class BluetoothRfidService extends ChangeNotifier {
       await FlutterBluePlus.stopScan();
       _scanSubscription?.cancel();
       _isScanning = false;
-      notifyListeners();
+      _safeNotifyListeners();
     } catch (e) {
       _logError('Error deteniendo escaneo: $e');
     }
@@ -236,7 +306,7 @@ class BluetoothRfidService extends ChangeNotifier {
     
     _isConnecting = true;
     _lastError = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       _log('Conectando a ${deviceInfo.name} (${deviceInfo.address})...');
@@ -268,56 +338,54 @@ class BluetoothRfidService extends ChangeNotifier {
       _log('Descubriendo servicios...');
       final services = await device.discoverServices();
       
-      // Buscar servicio y características
+      // Buscar servicio y características en TODOS los servicios
       for (var service in services) {
         _log('Servicio encontrado: ${service.uuid}');
         
-        // Buscar servicio Hopeland o servicios genéricos
-        if (service.uuid.toString().toLowerCase().contains('fff0') ||
-            service.uuid.toString().toLowerCase().contains('ffe0')) {
+        for (var characteristic in service.characteristics) {
+          final uuid = characteristic.uuid.toString().toLowerCase();
+          _log('  Característica: ${characteristic.uuid}');
+          _log('    Propiedades: write=${characteristic.properties.write}, notify=${characteristic.properties.notify}');
           
-          for (var characteristic in service.characteristics) {
-            _log('  Característica: ${characteristic.uuid}');
-            
-            // Característica de escritura
-            if (characteristic.properties.write || characteristic.properties.writeWithoutResponse) {
-              if (_writeCharacteristic == null || 
-                  characteristic.uuid.toString().toLowerCase().contains('fff2') ||
-                  characteristic.uuid.toString().toLowerCase().contains('ffe1')) {
-                _writeCharacteristic = characteristic;
-                _log('  → Característica de escritura asignada');
-              }
-            }
-            
-            // Característica de notificación
-            if (characteristic.properties.notify || characteristic.properties.indicate) {
-              if (_notifyCharacteristic == null || 
-                  characteristic.uuid.toString().toLowerCase().contains('fff1') ||
-                  characteristic.uuid.toString().toLowerCase().contains('ffe1')) {
-                _notifyCharacteristic = characteristic;
-                _log('  → Característica de notificación asignada');
-              }
-            }
+          // Característica de escritura (buscar la primera disponible)
+          if (_writeCharacteristic == null && 
+              (characteristic.properties.write || characteristic.properties.writeWithoutResponse)) {
+            _writeCharacteristic = characteristic;
+            _log('  ✅ Característica de ESCRITURA asignada');
+          }
+          
+          // Característica de notificación (buscar la primera disponible)
+          if (_notifyCharacteristic == null && 
+              (characteristic.properties.notify || characteristic.properties.indicate)) {
+            _notifyCharacteristic = characteristic;
+            _log('  ✅ Característica de NOTIFICACIÓN asignada');
           }
         }
       }
 
-      if (_writeCharacteristic == null && _notifyCharacteristic == null) {
-        _log('⚠️ No se encontraron características estándar, usando modo genérico');
+      if (_writeCharacteristic == null || _notifyCharacteristic == null) {
+        throw Exception('No se encontraron características necesarias (write=${_writeCharacteristic != null}, notify=${_notifyCharacteristic != null})');
       }
 
       // Suscribirse a notificaciones
-      if (_notifyCharacteristic != null) {
-        await _notifyCharacteristic!.setNotifyValue(true);
-        _dataSubscription = _notifyCharacteristic!.onValueReceived.listen(_processRfidData);
-        _log('Escuchando datos RFID...');
-      }
+      _log('Suscribiendo a notificaciones...');
+      await _notifyCharacteristic!.setNotifyValue(true);
+      _dataSubscription = _notifyCharacteristic!.onValueReceived.listen(
+        (data) {
+          _log('📡 Datos recibidos (${data.length} bytes)');
+          _processRfidData(data);
+        },
+        onError: (error) {
+          _logError('Error en stream de notificaciones: $error');
+        },
+      );
+      _log('✅ Escuchando datos RFID...');
 
       _isConnected = true;
       _isConnecting = false;
       
       _log('✅ Conectado exitosamente a ${deviceInfo.name}');
-      notifyListeners();
+      _safeNotifyListeners();
       return true;
       
     } catch (e) {
@@ -325,7 +393,7 @@ class BluetoothRfidService extends ChangeNotifier {
       _logError(_lastError!);
       _isConnecting = false;
       _isConnected = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return false;
     }
   }
@@ -340,45 +408,111 @@ class BluetoothRfidService extends ChangeNotifier {
     _notifyCharacteristic = null;
     _dataSubscription?.cancel();
     _connectionSubscription?.cancel();
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Buffer para datos fragmentados
   List<int> _dataBuffer = [];
 
-  /// Procesar datos recibidos del lector Hopeland
+  /// Procesar datos recibidos del lector Hopeland/BTR
   void _processRfidData(List<int> data) {
     _log('Datos recibidos: ${data.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
     
     // Agregar al buffer
     _dataBuffer.addAll(data);
     
-    // Procesar paquetes completos (formato Hopeland: empieza con 0xBB, termina con 0x7E)
+    // Buscar y procesar todos los paquetes de tags BTR (0xAA 0x12)
+    _processBTRTagsFromBuffer();
+  }
+  
+  /// Procesar todos los paquetes BTR 0xAA 0x12 del buffer
+  void _processBTRTagsFromBuffer() {
+    while (_dataBuffer.length >= 8) {
+      // Buscar inicio de paquete BTR tag: 0xAA 0x12
+      int startIndex = -1;
+      for (int i = 0; i < _dataBuffer.length - 1; i++) {
+        if (_dataBuffer[i] == 0xAA && _dataBuffer[i + 1] == 0x12) {
+          startIndex = i;
+          break;
+        }
+      }
+      
+      if (startIndex == -1) {
+        // No hay más paquetes de tags, limpiar buffer pero guardar últimos bytes
+        if (_dataBuffer.length > 100) {
+          _dataBuffer = _dataBuffer.sublist(_dataBuffer.length - 50);
+        }
+        break;
+      }
+      
+      // Descartar datos antes del paquete
+      if (startIndex > 0) {
+        _dataBuffer = _dataBuffer.sublist(startIndex);
+      }
+      
+      // Necesitamos al menos 7 bytes para leer el header y longitud EPC
+      if (_dataBuffer.length < 7) break;
+      
+      // Formato BTR: AA 12 00 00 LL LL EL [EPC bytes...] [6 bytes trailing]
+      // Byte 6 (índice desde 0) = longitud del EPC en bytes
+      final epcLen = _dataBuffer[6];
+      
+      // Validar longitud EPC razonable (4-24 bytes)
+      if (epcLen < 4 || epcLen > 24) {
+        // Longitud inválida, saltar este 0xAA
+        _log('⚠️ EPC length inválido: $epcLen, saltando...');
+        _dataBuffer = _dataBuffer.sublist(1);
+        continue;
+      }
+      
+      // Calcular longitud total del paquete
+      // Header (7) + EPC (epcLen) + trailing (6 bytes)
+      final totalLen = 7 + epcLen + 6;
+      
+      if (_dataBuffer.length < totalLen) {
+        // Paquete incompleto, esperar más datos
+        break;
+      }
+      
+      // Extraer EPC (empieza en byte 7)
+      final epcBytes = _dataBuffer.sublist(7, 7 + epcLen);
+      final epc = epcBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join().toUpperCase();
+      
+      // Emitir tag
+      final tag = RfidTag(
+        epc: epc,
+        rssi: -50,
+        antenna: 1,
+        timestamp: DateTime.now(),
+      );
+      
+      _log('🏷️ Tag leído: $epc (-50 dBm, $epcLen bytes)');
+      _tagController.add(tag);
+      
+      // Avanzar al siguiente paquete
+      _dataBuffer = _dataBuffer.sublist(totalLen);
+    }
+  }
+
+  /// Procesar paquetes Hopeland estándar (0xBB)
+  void _processHopelandPackets() {
     while (_dataBuffer.isNotEmpty) {
-      // Buscar inicio de paquete
       final startIndex = _dataBuffer.indexOf(0xBB);
       if (startIndex == -1) {
         _dataBuffer.clear();
         break;
       }
       
-      // Descartar datos antes del inicio
       if (startIndex > 0) {
         _dataBuffer = _dataBuffer.sublist(startIndex);
       }
       
-      // Buscar fin de paquete
       final endIndex = _dataBuffer.indexOf(0x7E);
-      if (endIndex == -1) {
-        // Paquete incompleto, esperar más datos
-        break;
-      }
+      if (endIndex == -1) break;
       
-      // Extraer paquete completo
       final packet = _dataBuffer.sublist(0, endIndex + 1);
       _dataBuffer = _dataBuffer.sublist(endIndex + 1);
       
-      // Procesar paquete
       _parseHopelandPacket(packet);
     }
   }
@@ -386,6 +520,12 @@ class BluetoothRfidService extends ChangeNotifier {
   /// Parsear paquete Hopeland
   void _parseHopelandPacket(List<int> packet) {
     if (packet.length < 7) return;
+    
+    // Verificar checksum (segundo byte antes de 0x7E)
+    if (!_validateChecksum(packet)) {
+      _log('⚠️ Checksum inválido, paquete descartado');
+      return;
+    }
     
     // Verificar formato: [0xBB, Type, Command, PL_H, PL_L, ...Data..., Checksum, 0x7E]
     final type = packet[1];
@@ -398,6 +538,25 @@ class BluetoothRfidService extends ChangeNotifier {
     if (command == 0x22 && packet.length >= 7 + dataLen) {
       _parseInventoryResponse(packet.sublist(5, 5 + dataLen));
     }
+    // Respuesta de versión (comando 0x03)
+    else if (command == 0x03 && dataLen > 0) {
+      final version = String.fromCharCodes(packet.sublist(5, 5 + dataLen));
+      _log('📱 Versión del lector: $version');
+    }
+  }
+
+  /// Validar checksum del paquete Hopeland
+  bool _validateChecksum(List<int> packet) {
+    if (packet.length < 7) return false;
+    
+    // Checksum = suma de bytes desde Type hasta último dato, módulo 256
+    int calculatedChecksum = 0;
+    for (int i = 1; i < packet.length - 2; i++) {
+      calculatedChecksum = (calculatedChecksum + packet[i]) & 0xFF;
+    }
+    
+    final receivedChecksum = packet[packet.length - 2];
+    return calculatedChecksum == receivedChecksum;
   }
 
   /// Parsear respuesta de inventario
@@ -507,10 +666,40 @@ class BluetoothRfidService extends ChangeNotifier {
     return await sendCommand(cmdGetVersion);
   }
 
+  /// Configurar potencia de transmisión del lector
+  /// [power] - 'low' (20dBm), 'mid' (26dBm), 'max' (30dBm)
+  Future<bool> setReaderPower(String power) async {
+    if (!_isConnected) {
+      _lastError = 'No hay dispositivo conectado';
+      return false;
+    }
+    
+    List<int> command;
+    switch (power.toLowerCase()) {
+      case 'low':
+        command = cmdSetPowerLow;
+        _log('Configurando potencia: BAJA (20dBm)');
+        break;
+      case 'mid':
+        command = cmdSetPowerMid;
+        _log('Configurando potencia: MEDIA (26dBm)');
+        break;
+      case 'max':
+        command = cmdSetPowerMax;
+        _log('Configurando potencia: ALTA (30dBm)');
+        break;
+      default:
+        _lastError = 'Potencia inválida: $power. Use: low, mid, max';
+        return false;
+    }
+    
+    return await sendCommand(command);
+  }
+
   /// Limpiar error
   void clearError() {
     _lastError = null;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   @override

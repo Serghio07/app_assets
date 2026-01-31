@@ -24,7 +24,6 @@ class _UbicacionesScreenState extends State<UbicacionesScreen> {
 
   static const Color primaryColor = Color(0xFF00BCD4);
   static const Color secondaryColor = Color(0xFF00838F);
-  static const Color accentColor = Color(0xFF06B6D4);
 
   @override
   void initState() {

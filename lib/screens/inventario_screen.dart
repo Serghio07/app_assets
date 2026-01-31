@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
+import '../models/rfid_tag.dart';
 import '../services/api_service.dart';
+import '../services/bluetooth_rfid_service.dart';
 import '../providers/providers.dart';
 
 class InventarioScreen extends StatefulWidget {
@@ -81,7 +84,6 @@ class _InventarioScreenState extends State<InventarioScreen> {
     try {
       final activos = await _apiService.getActivosPorUbicacion(
         empresaId: widget.empresaId,
-        sucursalId: sucursalId,
         ubicacionId: ubicacionId,
       );
       setState(() {
@@ -829,9 +831,12 @@ class InventarioScannerScreen extends StatefulWidget {
 class _InventarioScannerScreenState extends State<InventarioScannerScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _rfidController = TextEditingController();
   final ApiService _apiService = ApiService();
+  final BluetoothRfidService _bluetoothService = BluetoothRfidService();
+  StreamSubscription<RfidTag>? _tagSubscription;
 
   final List<LecturaRfid> _escaneos = [];
   List<Activo> _activosPendientes = [];
+  final Set<String> _processedTags = {}; // Para evitar duplicados
   bool _isLoading = false;
   late TabController _tabController;
 
@@ -843,13 +848,214 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
   @override
   void initState() {
     super.initState();
+    debugPrint('🚀 [INVENTARIO_SCANNER] initState ejecutado!');
+    debugPrint('🔗 [INVENTARIO_SCANNER] Servicio Bluetooth (singleton): ${_bluetoothService.hashCode}');
+    
     _activosPendientes = List.from(widget.activos);
     _rfidController.addListener(_onRfidScanned);
     _tabController = TabController(length: 2, vsync: this);
+    
+    // ⭐ INICIAR ESCUCHA DE TAGS RFID
+    _startBluetoothListener();
+  }
+  
+  /// Match fuzzy: compara EPCs con tolerancia a pequeñas diferencias
+  /// Útil cuando el EPC en DB está truncado o tiene errores menores
+  bool _isFuzzyMatch(String tag, String dbRfid) {
+    // Si uno está contenido en el otro con pequeña diferencia de longitud
+    final lenDiff = (tag.length - dbRfid.length).abs();
+    if (lenDiff <= 3) {
+      // Comparar caracteres comunes
+      final shorter = tag.length < dbRfid.length ? tag : dbRfid;
+      final longer = tag.length >= dbRfid.length ? tag : dbRfid;
+      
+      // Verificar si el más corto está "casi" contenido en el más largo
+      // Buscar la mejor alineación
+      for (int offset = 0; offset <= lenDiff; offset++) {
+        int matches = 0;
+        for (int i = 0; i < shorter.length && i + offset < longer.length; i++) {
+          if (shorter[i] == longer[i + offset]) matches++;
+        }
+        // Si más del 85% coincide, es un match
+        if (matches >= shorter.length * 0.85) {
+          debugPrint('      🔍 Fuzzy: $matches/${shorter.length} chars match (${(matches/shorter.length*100).toStringAsFixed(1)}%)');
+          return true;
+        }
+      }
+    }
+    
+    // Verificar si comparten un substring largo (mínimo 16 caracteres)
+    if (tag.length >= 16 && dbRfid.length >= 16) {
+      for (int i = 0; i <= tag.length - 16; i++) {
+        final substring = tag.substring(i, i + 16);
+        if (dbRfid.contains(substring)) {
+          debugPrint('      🔍 Fuzzy: substring match de 16 chars: $substring');
+          return true;
+        }
+      }
+      for (int i = 0; i <= dbRfid.length - 16; i++) {
+        final substring = dbRfid.substring(i, i + 16);
+        if (tag.contains(substring)) {
+          debugPrint('      🔍 Fuzzy: substring match de 16 chars: $substring');
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  void _startBluetoothListener() {
+    debugPrint('🎧 [INVENTARIO_SCANNER] Iniciando listener de tags Bluetooth...');
+    
+    // ⭐ LOG: Mostrar todos los activos pendientes y sus EPCs
+    debugPrint('📋 [INVENTARIO_SCANNER] ============ ACTIVOS PENDIENTES ============');
+    debugPrint('📋 [INVENTARIO_SCANNER] Total: ${_activosPendientes.length} activos');
+    for (int i = 0; i < _activosPendientes.length; i++) {
+      final a = _activosPendientes[i];
+      final rfid = a.rfidUid?.toUpperCase().trim() ?? 'SIN RFID';
+      debugPrint('📋 [INVENTARIO_SCANNER] ${i+1}. ${a.codigoInterno}: RFID=[$rfid] (${rfid.length} chars)');
+    }
+    debugPrint('📋 [INVENTARIO_SCANNER] ==========================================');
+    
+    _tagSubscription?.cancel();
+    _tagSubscription = _bluetoothService.tagStream.listen(
+      _onBluetoothTagReceived,
+      onError: (error) => debugPrint('❌ [INVENTARIO_SCANNER] Error en stream: $error'),
+      onDone: () => debugPrint('⚠️ [INVENTARIO_SCANNER] Stream cerrado'),
+    );
+    debugPrint('✅ [INVENTARIO_SCANNER] Listener activo, esperando tags...');
+  }
+  
+  void _onBluetoothTagReceived(RfidTag tag) {
+    debugPrint('🔵 [INVENTARIO_SCANNER] Tag Bluetooth recibido: ${tag.epc}');
+    
+    // Evitar procesar tags duplicados
+    if (_processedTags.contains(tag.epc)) {
+      debugPrint('⏭️ [INVENTARIO_SCANNER] Tag ya procesado, ignorando');
+      return;
+    }
+    
+    // Buscar match con activos pendientes
+    _processBluetoothTag(tag.epc);
+  }
+  
+  void _processBluetoothTag(String tagEpc) {
+    final tagUpper = tagEpc.toUpperCase().trim();
+    debugPrint('📋 [INVENTARIO_SCANNER] Buscando match para: $tagUpper (${tagUpper.length} chars)');
+    debugPrint('📋 [INVENTARIO_SCANNER] Activos pendientes: ${_activosPendientes.length}');
+    
+    // Buscar activo que coincida (match flexible)
+    Activo? activoMatch;
+    for (final activo in _activosPendientes) {
+      final rfidActivo = activo.rfidUid?.toUpperCase().trim() ?? '';
+      if (rfidActivo.isEmpty) continue;
+      
+      debugPrint('   ✓ Comparando: [$tagUpper] vs [$rfidActivo] (${activo.codigoInterno})');
+      
+      // Match exacto
+      if (rfidActivo == tagUpper) {
+        debugPrint('   ✅ MATCH EXACTO: ${activo.codigoInterno}');
+        activoMatch = activo;
+        break;
+      }
+      
+      // Match parcial: uno contiene al otro
+      if (rfidActivo.contains(tagUpper) || tagUpper.contains(rfidActivo)) {
+        debugPrint('   ✅ MATCH PARCIAL (contains): ${activo.codigoInterno}');
+        activoMatch = activo;
+        break;
+      }
+      
+      // Match por sufijo
+      if (rfidActivo.endsWith(tagUpper) || tagUpper.endsWith(rfidActivo)) {
+        debugPrint('   ✅ MATCH SUFIJO: ${activo.codigoInterno}');
+        activoMatch = activo;
+        break;
+      }
+      
+      // Match por substring significativo (últimos 16 caracteres)
+      final minLen = tagUpper.length < rfidActivo.length ? tagUpper.length : rfidActivo.length;
+      if (minLen >= 16) {
+        final tagSuffix = tagUpper.substring(tagUpper.length - 16);
+        final rfidSuffix = rfidActivo.substring(rfidActivo.length - 16);
+        if (tagSuffix == rfidSuffix) {
+          debugPrint('   ✅ MATCH SUFIJO-16: ${activo.codigoInterno}');
+          activoMatch = activo;
+          break;
+        }
+      }
+      
+      // Match fuzzy: si la diferencia es de pocos caracteres (1-2)
+      // Útil cuando el EPC en DB está truncado o tiene un typo
+      if (_isFuzzyMatch(tagUpper, rfidActivo)) {
+        debugPrint('   ✅ MATCH FUZZY: ${activo.codigoInterno}');
+        activoMatch = activo;
+        break;
+      }
+    }
+    
+    if (activoMatch != null) {
+      _processedTags.add(tagEpc);
+      _registrarEscaneo(activoMatch, tagEpc);
+    } else {
+      debugPrint('❌ [INVENTARIO_SCANNER] Tag NO coincide con ningún activo pendiente');
+    }
+  }
+  
+  void _registrarEscaneo(Activo activo, String rfidUid) {
+    debugPrint('✅ [INVENTARIO_SCANNER] Registrando escaneo: ${activo.codigoInterno}');
+    
+    setState(() {
+      final lectura = LecturaRfid(
+        id: DateTime.now().millisecondsSinceEpoch,
+        inventarioId: widget.inventario.id,
+        rfidUid: rfidUid,
+        fechaLectura: DateTime.now(),
+      );
+      
+      _escaneos.add(lectura);
+      _activosPendientes.removeWhere((a) => a.id == activo.id);
+    });
+    
+    // Mostrar feedback visual
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text('✅ ${activo.codigoInterno} detectado')),
+          ],
+        ),
+        backgroundColor: successColor,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+    
+    // Enviar al backend
+    _enviarLecturaAlBackend(activo, rfidUid);
+  }
+  
+  Future<void> _enviarLecturaAlBackend(Activo activo, String rfidUid) async {
+    try {
+      await _apiService.enviarLecturaRfid(
+        inventarioId: widget.inventario.id,
+        rfidUid: rfidUid,
+        rssi: -50,
+        antennaId: 1,
+      );
+      debugPrint('📤 [INVENTARIO_SCANNER] Lectura enviada al backend');
+    } catch (e) {
+      debugPrint('❌ [INVENTARIO_SCANNER] Error enviando lectura: $e');
+    }
   }
 
   @override
   void dispose() {
+    _tagSubscription?.cancel();
     _rfidController.removeListener(_onRfidScanned);
     _rfidController.dispose();
     _tabController.dispose();

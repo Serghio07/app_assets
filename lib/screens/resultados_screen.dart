@@ -24,7 +24,6 @@ class _ResultadosScreenState extends State<ResultadosScreen> with SingleTickerPr
   
   // Colores del tema
   static const Color primaryColor = Color(0xFF00BCD4);
-  static const Color secondaryColor = Color(0xFF00838F);
   static const Color accentColor = Color(0xFF26C6DA);
   static const Color greenColor = Color(0xFF4CAF50);
   static const Color orangeColor = Color(0xFFFF9800);

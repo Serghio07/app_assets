@@ -6,9 +6,9 @@ import '../models/models.dart';
 
 class ApiService {
   // URL Base del Backend
-  // ⚠️ IMPORTANTE: Tu PC está en la IP 192.168.100.142 (WiFi)
-  // - Tu teléfono debe estar conectado a la misma red WiFi
-  // - El backend debe estar corriendo en el puerto 3000
+  //  IMPORTANTE: Usando IP local de la PC para dispositivos físicos Android
+  // - El dispositivo debe estar conectado a la misma red WiFi que la PC
+  // - El backend debe estar corriendo en 0.0.0.0:3000
   static const String baseUrl = 'http://192.168.100.142:3000/api/v1';
   
   // Logger helper
@@ -223,7 +223,7 @@ class ApiService {
     int skip = 0,
     int take = 20,
   }) async {
-    String url = '$baseUrl/ubicaciones?skip=$skip&take=$take';
+    String url = '$baseUrl/ubicaciones?skip=$skip&take=$take&permite_inventario=true';
     if (empresaId != null) {
       url += '&empresa_id=$empresaId';
     }
@@ -295,16 +295,14 @@ class ApiService {
 
   Future<List<Activo>> getActivosPorUbicacion({
     required String empresaId,
-    required String sucursalId,
     required String ubicacionId,
     int skip = 0,
-    int take = 20,
+    int take = 100,
   }) async {
-    final url = '$baseUrl/activos/empresa/$empresaId/sucursal/$sucursalId/ubicacion/$ubicacionId?skip=$skip&take=$take';
+    final url = '$baseUrl/activos?ubicacion_id=$ubicacionId&empresa_id=$empresaId&skip=$skip&take=$take';
     
     _log('ACTIVOS: Obteniendo activos por ubicación');
     _log('ACTIVOS: Empresa ID: $empresaId');
-    _log('ACTIVOS: Sucursal ID: $sucursalId');
     _log('ACTIVOS: Ubicación ID: $ubicacionId');
     _log('ACTIVOS: URL: $url');
 
@@ -323,6 +321,7 @@ class ApiService {
       _logSuccess('ACTIVOS: Total encontrados: ${activos.length}');
       for (var activo in activos) {
         _log('ACTIVOS: - ${activo.codigoInterno} | ${activo.tipoActivo?.nombre ?? "Sin tipo"}');
+        _log('ACTIVOS:   RFID: ${activo.rfidUid ?? "SIN RFID"} ⚠️');
       }
       return activos;
     } else {
@@ -575,12 +574,11 @@ class ApiService {
     _log('INVENTARIO: Creando inventario RFID');
     _log('INVENTARIO: empresaId=$empresaId, ubicacionId=$ubicacionId, usuarioId=$usuarioId');
     
-    // Formato del body - algunos backends usan snake_case, otros camelCase
+    // Formato del body según DTO del backend (snake_case)
     final body = {
       'empresa_id': empresaId,
       'ubicacion_id': ubicacionId,
       'fecha_inicio': DateTime.now().toIso8601String().split('T')[0],
-      if (usuarioId != null) 'usuario_id': usuarioId,
     };
 
     _log('INVENTARIO: Body: ${jsonEncode(body)}');
