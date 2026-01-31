@@ -835,11 +835,13 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
   StreamSubscription<RfidTag>? _tagSubscription;
 
   final List<LecturaRfid> _escaneos = [];
-  final Map<int, Activo> _activosEscaneados = {}; // Mapa: lecturaId -> Activo
-  List<Activo> _activosPendientes = [];
-  final Set<String> _processedTags = {}; // Para evitar duplicados
+  final Map<String, ActivoInfo> _activosDetectados = {}; // rfidUid -> ActivoInfo (desde backend)
   bool _isLoading = false;
   late TabController _tabController;
+  
+  // ✅ REMOVIDO: _activosPendientes - El backend tiene todos los activos
+  // ✅ REMOVIDO: _activosEscaneados - Usamos info del backend
+  // ✅ REMOVIDO: _processedTags - El backend maneja duplicados
 
   static const Color primaryColor = Color(0xFF00BCD4);
   static const Color successColor = Color(0xFF10B981);
@@ -852,7 +854,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
     debugPrint('🚀 [INVENTARIO_SCANNER] initState ejecutado!');
     debugPrint('🔗 [INVENTARIO_SCANNER] Servicio Bluetooth (singleton): ${_bluetoothService.hashCode}');
     
-    _activosPendientes = List.from(widget.activos);
+    // ✅ SIMPLIFICADO: Ya NO copiamos activos localmente
     _rfidController.addListener(_onRfidScanned);
     _tabController = TabController(length: 2, vsync: this);
     
@@ -860,64 +862,11 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
     _startBluetoothListener();
   }
   
-  /// Match fuzzy: compara EPCs con tolerancia a pequeñas diferencias
-  /// Útil cuando el EPC en DB está truncado o tiene errores menores
-  bool _isFuzzyMatch(String tag, String dbRfid) {
-    // Si uno está contenido en el otro con pequeña diferencia de longitud
-    final lenDiff = (tag.length - dbRfid.length).abs();
-    if (lenDiff <= 3) {
-      // Comparar caracteres comunes
-      final shorter = tag.length < dbRfid.length ? tag : dbRfid;
-      final longer = tag.length >= dbRfid.length ? tag : dbRfid;
-      
-      // Verificar si el más corto está "casi" contenido en el más largo
-      // Buscar la mejor alineación
-      for (int offset = 0; offset <= lenDiff; offset++) {
-        int matches = 0;
-        for (int i = 0; i < shorter.length && i + offset < longer.length; i++) {
-          if (shorter[i] == longer[i + offset]) matches++;
-        }
-        // Si más del 85% coincide, es un match
-        if (matches >= shorter.length * 0.85) {
-          debugPrint('      🔍 Fuzzy: $matches/${shorter.length} chars match (${(matches/shorter.length*100).toStringAsFixed(1)}%)');
-          return true;
-        }
-      }
-    }
-    
-    // Verificar si comparten un substring largo (mínimo 16 caracteres)
-    if (tag.length >= 16 && dbRfid.length >= 16) {
-      for (int i = 0; i <= tag.length - 16; i++) {
-        final substring = tag.substring(i, i + 16);
-        if (dbRfid.contains(substring)) {
-          debugPrint('      🔍 Fuzzy: substring match de 16 chars: $substring');
-          return true;
-        }
-      }
-      for (int i = 0; i <= dbRfid.length - 16; i++) {
-        final substring = dbRfid.substring(i, i + 16);
-        if (tag.contains(substring)) {
-          debugPrint('      🔍 Fuzzy: substring match de 16 chars: $substring');
-          return true;
-        }
-      }
-    }
-    
-    return false;
-  }
+  // ✅ REMOVIDO: _isFuzzyMatch() - El backend tiene búsqueda inteligente con 3 estrategias
   
   void _startBluetoothListener() {
     debugPrint('🎧 [INVENTARIO_SCANNER] Iniciando listener de tags Bluetooth...');
-    
-    // ⭐ LOG: Mostrar todos los activos pendientes y sus EPCs
-    debugPrint('📋 [INVENTARIO_SCANNER] ============ ACTIVOS PENDIENTES ============');
-    debugPrint('📋 [INVENTARIO_SCANNER] Total: ${_activosPendientes.length} activos');
-    for (int i = 0; i < _activosPendientes.length; i++) {
-      final a = _activosPendientes[i];
-      final rfid = a.rfidUid?.toUpperCase().trim() ?? 'SIN RFID';
-      debugPrint('📋 [INVENTARIO_SCANNER] ${i+1}. ${a.codigoInterno}: RFID=[$rfid] (${rfid.length} chars)');
-    }
-    debugPrint('📋 [INVENTARIO_SCANNER] ==========================================');
+    debugPrint('📋 [INVENTARIO_SCANNER] Total activos en ubicación: ${widget.activos.length}');
     
     _tagSubscription?.cancel();
     _tagSubscription = _bluetoothService.tagStream.listen(
@@ -928,133 +877,102 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
     debugPrint('✅ [INVENTARIO_SCANNER] Listener activo, esperando tags...');
   }
   
-  void _onBluetoothTagReceived(RfidTag tag) {
+  /// ✅ SIMPLIFICADO: Solo envía al backend para procesamiento completo
+  void _onBluetoothTagReceived(RfidTag tag) async {
     debugPrint('🔵 [INVENTARIO_SCANNER] Tag Bluetooth recibido: ${tag.epc}');
     
-    // Evitar procesar tags duplicados
-    if (_processedTags.contains(tag.epc)) {
-      debugPrint('⏭️ [INVENTARIO_SCANNER] Tag ya procesado, ignorando');
-      return;
-    }
-    
-    // Buscar match con activos pendientes
-    _processBluetoothTag(tag.epc);
+    // ✅ NUEVO: Enviar al backend para procesamiento completo
+    await _procesarRfidEnBackend(tag);
   }
   
-  void _processBluetoothTag(String tagEpc) {
-    final tagUpper = tagEpc.toUpperCase().trim();
-    debugPrint('📋 [INVENTARIO_SCANNER] Buscando match para: $tagUpper (${tagUpper.length} chars)');
-    debugPrint('📋 [INVENTARIO_SCANNER] Activos pendientes: ${_activosPendientes.length}');
-    
-    // Buscar activo que coincida (match flexible)
-    Activo? activoMatch;
-    for (final activo in _activosPendientes) {
-      final rfidActivo = activo.rfidUid?.toUpperCase().trim() ?? '';
-      if (rfidActivo.isEmpty) continue;
-      
-      debugPrint('   ✓ Comparando: [$tagUpper] vs [$rfidActivo] (${activo.codigoInterno})');
-      
-      // Match exacto
-      if (rfidActivo == tagUpper) {
-        debugPrint('   ✅ MATCH EXACTO: ${activo.codigoInterno}');
-        activoMatch = activo;
-        break;
-      }
-      
-      // Match parcial: uno contiene al otro
-      if (rfidActivo.contains(tagUpper) || tagUpper.contains(rfidActivo)) {
-        debugPrint('   ✅ MATCH PARCIAL (contains): ${activo.codigoInterno}');
-        activoMatch = activo;
-        break;
-      }
-      
-      // Match por sufijo
-      if (rfidActivo.endsWith(tagUpper) || tagUpper.endsWith(rfidActivo)) {
-        debugPrint('   ✅ MATCH SUFIJO: ${activo.codigoInterno}');
-        activoMatch = activo;
-        break;
-      }
-      
-      // Match por substring significativo (últimos 16 caracteres)
-      final minLen = tagUpper.length < rfidActivo.length ? tagUpper.length : rfidActivo.length;
-      if (minLen >= 16) {
-        final tagSuffix = tagUpper.substring(tagUpper.length - 16);
-        final rfidSuffix = rfidActivo.substring(rfidActivo.length - 16);
-        if (tagSuffix == rfidSuffix) {
-          debugPrint('   ✅ MATCH SUFIJO-16: ${activo.codigoInterno}');
-          activoMatch = activo;
-          break;
-        }
-      }
-      
-      // Match fuzzy: si la diferencia es de pocos caracteres (1-2)
-      // Útil cuando el EPC en DB está truncado o tiene un typo
-      if (_isFuzzyMatch(tagUpper, rfidActivo)) {
-        debugPrint('   ✅ MATCH FUZZY: ${activo.codigoInterno}');
-        activoMatch = activo;
-        break;
-      }
-    }
-    
-    if (activoMatch != null) {
-      _processedTags.add(tagEpc);
-      _registrarEscaneo(activoMatch, tagEpc);
-    } else {
-      debugPrint('❌ [INVENTARIO_SCANNER] Tag NO coincide con ningún activo pendiente');
-    }
-  }
-  
-  void _registrarEscaneo(Activo activo, String rfidUid) {
-    debugPrint('✅ [INVENTARIO_SCANNER] Registrando escaneo: ${activo.codigoInterno}');
-    
-    setState(() {
-      final lecturaId = DateTime.now().millisecondsSinceEpoch;
-      final lectura = LecturaRfid(
-        id: lecturaId,
+  /// ✅ NUEVO: Procesa RFID en backend con TODA la lógica
+  Future<void> _procesarRfidEnBackend(RfidTag tag) async {
+    try {
+      final respuesta = await _apiService.procesarRfid(
         inventarioId: widget.inventario.id,
-        rfidUid: rfidUid,
-        fechaLectura: DateTime.now(),
+        rfidUid: tag.epc,
+        rssi: tag.rssi,
+        antennaId: tag.antenna,
+        tid: tag.tid,
       );
       
-      _escaneos.add(lectura);
-      _activosEscaneados[lecturaId] = activo; // Guardar referencia al activo
-      _activosPendientes.removeWhere((a) => a.id == activo.id);
-    });
-    
-    // Mostrar feedback visual
+      if (!mounted) return;
+      
+      if (respuesta.success && respuesta.activoEncontrado) {
+        // ✅ Activo encontrado - ACTUALIZAR ESTADO
+        setState(() {
+          // Agregar activo detectado
+          if (respuesta.activo != null) {
+            _activosDetectados[tag.epc] = respuesta.activo!;
+          }
+          
+          // Actualizar o agregar escaneo (evitar duplicados)
+          final indiceExistente = _escaneos.indexWhere((e) => e.rfidUid == tag.epc);
+          if (indiceExistente != -1) {
+            // Ya existe - actualizar contador
+            _escaneos[indiceExistente] = LecturaRfid(
+              id: _escaneos[indiceExistente].id,
+              inventarioId: widget.inventario.id,
+              rfidUid: tag.epc,
+              fechaLectura: DateTime.now(),
+              cantidadLecturas: respuesta.vecesEscaneado ?? 1,
+            );
+          } else {
+            // Nuevo - agregar al inicio
+            _escaneos.insert(0, LecturaRfid(
+              id: DateTime.now().millisecondsSinceEpoch,
+              inventarioId: widget.inventario.id,
+              rfidUid: tag.epc,
+              fechaLectura: DateTime.now(),
+              cantidadLecturas: 1,
+            ));
+          }
+        });
+        
+        // Mostrar notificación SOLO para nuevos (no duplicados)
+        if (respuesta.esDuplicado != true) {
+          final mensaje = '✅ ${respuesta.activo?.codigoInterno ?? tag.epc} detectado';
+          _mostrarNotificacion(mensaje, successColor);
+        }
+        
+        // Mostrar warnings si existen
+        if (respuesta.tieneWarnings) {
+          for (var warning in respuesta.warnings) {
+            debugPrint('⚠️ WARNING: $warning');
+          }
+        }
+      } else {
+        // ❌ Error o no encontrado
+        _mostrarNotificacion(respuesta.mensaje, Colors.red);
+      }
+    } catch (e) {
+      debugPrint('❌ Error procesando RFID en backend: $e');
+    }
+  }
+  
+  void _mostrarNotificacion(String mensaje, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.white),
+            Icon(
+              color == successColor ? Icons.check_circle : Icons.error_outline,
+              color: Colors.white,
+            ),
             const SizedBox(width: 8),
-            Expanded(child: Text('✅ ${activo.codigoInterno} detectado')),
+            Expanded(child: Text(mensaje)),
           ],
         ),
-        backgroundColor: successColor,
+        backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 1),
+        duration: const Duration(seconds: 2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
-    
-    // Enviar al backend
-    _enviarLecturaAlBackend(activo, rfidUid);
   }
   
-  Future<void> _enviarLecturaAlBackend(Activo activo, String rfidUid) async {
-    try {
-      await _apiService.enviarLecturaRfid(
-        inventarioId: widget.inventario.id,
-        rfidUid: rfidUid,
-        rssi: -50,
-        antennaId: 1,
-      );
-      debugPrint('📤 [INVENTARIO_SCANNER] Lectura enviada al backend');
-    } catch (e) {
-      debugPrint('❌ [INVENTARIO_SCANNER] Error enviando lectura: $e');
-    }
-  }
+  // ✅ REMOVIDO: _registrarEscaneo() - El backend procesa todo
+  // ✅ REMOVIDO: _enviarLecturaAlBackend() - procesarRfid() lo hace automáticamente
 
   @override
   void dispose() {
@@ -1065,6 +983,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
     super.dispose();
   }
 
+  /// ✅ SIMPLIFICADO: Solo envía al backend
   Future<void> _onRfidScanned() async {
     if (_rfidController.text.isEmpty) return;
 
@@ -1074,44 +993,51 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
     setState(() => _isLoading = true);
 
     try {
-      // Buscar activo por RFID
-      final activo = await _apiService.searchActivoByRfid(rfidUid);
-
-      // Verificar que el activo pertenece a la ubicación del inventario
-      if (activo.ubicacionActualId != widget.inventario.ubicacionId) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.warning_amber_rounded, color: Colors.white),
-                const SizedBox(width: 12),
-                Text('Activo en ubicación diferente: ${activo.codigoInterno}'),
-              ],
-            ),
-            backgroundColor: warningColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      // Registrar escaneo usando el nuevo endpoint
-      final lectura = await _apiService.enviarLecturaRfid(
+      // ✅ NUEVO: Usar procesarRfid del backend
+      final respuesta = await _apiService.procesarRfid(
         inventarioId: widget.inventario.id,
         rfidUid: rfidUid,
       );
-
-      // Actualizar listas
-      setState(() {
-        _escaneos.add(lectura);
-        _activosPendientes.removeWhere((a) => a.id == activo.id);
-        _isLoading = false;
-      });
-
-      // Mostrar éxito
-      _showSuccessAnimation(activo.codigoInterno);
+      
+      if (respuesta.success && respuesta.activoEncontrado) {
+        setState(() {
+          // Agregar activo detectado
+          if (respuesta.activo != null) {
+            _activosDetectados[rfidUid] = respuesta.activo!;
+          }
+          
+          // Actualizar o agregar escaneo (evitar duplicados)
+          final indiceExistente = _escaneos.indexWhere((e) => e.rfidUid == rfidUid);
+          if (indiceExistente != -1) {
+            // Ya existe - actualizar contador
+            _escaneos[indiceExistente] = LecturaRfid(
+              id: _escaneos[indiceExistente].id,
+              inventarioId: widget.inventario.id,
+              rfidUid: rfidUid,
+              fechaLectura: DateTime.now(),
+              cantidadLecturas: respuesta.vecesEscaneado ?? 1,
+            );
+          } else {
+            // Nuevo - agregar al inicio
+            _escaneos.insert(0, LecturaRfid(
+              id: DateTime.now().millisecondsSinceEpoch,
+              inventarioId: widget.inventario.id,
+              rfidUid: rfidUid,
+              fechaLectura: DateTime.now(),
+              cantidadLecturas: 1,
+            ));
+          }
+        });
+        
+        // Mostrar notificación SOLO para nuevos (no duplicados)
+        if (respuesta.esDuplicado != true) {
+          _mostrarNotificacion(respuesta.mensaje, successColor);
+        }
+      } else {
+        _mostrarNotificacion(respuesta.mensaje, Colors.red);
+      }
+      
+      setState(() => _isLoading = false);
     } catch (e) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1131,33 +1057,13 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
     }
   }
 
-  void _showSuccessAnimation(String codigo) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_rounded, color: Colors.white, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Text('$codigo escaneado correctamente'),
-          ],
-        ),
-        backgroundColor: successColor,
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
   Future<void> _completeInventario() async {
-    if (_activosPendientes.isNotEmpty) {
+    // ✅ SIMPLIFICADO: Calcular pendientes desde datos del backend
+    final escaneados = _activosDetectados.length;
+    final total = widget.activos.length;
+    final pendientes = total - escaneados;
+    
+    if (pendientes > 0) {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -1176,8 +1082,13 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
               const Text('Inventario Incompleto'),
             ],
           ),
-          content: Text(
-            'Quedan ${_activosPendientes.length} activos por escanear.\n¿Deseas completar de todas formas?',
+          content: Builder(
+            builder: (context) {
+              final pendientes = widget.activos.length - _activosDetectados.length;
+              return Text(
+                'Quedan $pendientes activos por escanear.\n¿Deseas completar de todas formas?',
+              );
+            },
           ),
           actions: [
             TextButton(
@@ -1240,9 +1151,10 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
 
   @override
   Widget build(BuildContext context) {
-    final int pendientes = _activosPendientes.length;
-    final int escaneados = _escaneos.length;
-    final int total = escaneados + pendientes;
+    // ✅ SIMPLIFICADO: Calcular estadísticas desde backend
+    final int escaneados = _activosDetectados.length; // Activos únicos detectados
+    final int total = widget.activos.length;
+    final int pendientes = total - escaneados;
     final double porcentaje = total > 0 ? (escaneados / total) : 0;
 
     return PopScope(
@@ -1511,66 +1423,80 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
                                   return _buildScanCard(scan, isScanned: true);
                                 },
                               ),
-                        // Tab pendientes
-                        _activosPendientes.isEmpty
-                            ? _buildEmptyTab('¡Todos escaneados!', Icons.celebration_rounded, 'Excelente trabajo')
-                            : ListView.builder(
-                                padding: const EdgeInsets.all(20),
-                                itemCount: _activosPendientes.length,
-                                itemBuilder: (context, index) {
-                                  final activo = _activosPendientes[index];
-                                  return _buildPendingCard(activo);
-                                },
-                              ),
+                        // Tab pendientes - ✅ Calcular dinámicamente
+                        () {
+                          final activosPendientes = widget.activos
+                              .where((a) => !_activosDetectados.values.any((info) => info.id == a.id))
+                              .toList();
+                          
+                          return activosPendientes.isEmpty
+                              ? _buildEmptyTab('¡Todos escaneados!', Icons.celebration_rounded, 'Excelente trabajo')
+                              : ListView.builder(
+                                  padding: const EdgeInsets.all(20),
+                                  itemCount: activosPendientes.length,
+                                  itemBuilder: (context, index) {
+                                    final activo = activosPendientes[index];
+                                    return _buildPendingCard(activo);
+                                  },
+                                );
+                        }(),
                       ],
                     ),
                   ),
                 ],
               ),
-        floatingActionButton: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: _activosPendientes.isEmpty 
-                  ? [successColor, const Color(0xFF059669)]
-                  : [warningColor, const Color(0xFFD97706)],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: (_activosPendientes.isEmpty ? successColor : warningColor).withValues(alpha: 0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+        floatingActionButton: Builder(
+          builder: (context) {
+            // ✅ Calcular pendientes dinámicamente
+            final pendientes = widget.activos.length - _activosDetectados.length;
+            final hayPendientes = pendientes > 0;
+            
+            return Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: hayPendientes
+                      ? [warningColor, const Color(0xFFD97706)]
+                      : [successColor, const Color(0xFF059669)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: (hayPendientes ? warningColor : successColor).withValues(alpha: 0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: _completeInventario,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _activosPendientes.isEmpty ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
-                      color: Colors.white,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _completeInventario,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          hayPendientes ? Icons.warning_amber_rounded : Icons.check_circle_rounded,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          hayPendientes ? 'Finalizar con pendientes' : 'Completar',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      _activosPendientes.isEmpty ? 'Completar' : 'Finalizar con pendientes',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       ),
@@ -1613,9 +1539,10 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
   }
 
   Widget _buildScanCard(LecturaRfid scan, {bool isScanned = false}) {
-    final activo = _activosEscaneados[scan.id];
-    final nombre = activo?.tipoActivo?.nombre ?? activo?.codigoInterno ?? 'Activo';
-    final codigo = activo?.codigoInterno ?? scan.rfidUid;
+    // ✅ Obtener info del activo desde backend
+    final activoInfo = _activosDetectados[scan.rfidUid];
+    final nombre = activoInfo?.tipoActivo ?? 'Activo';
+    final codigo = activoInfo?.codigoInterno ?? scan.rfidUid;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

@@ -12,8 +12,7 @@ class InventarioProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
-  // Set para controlar tags únicos
-  final Set<String> _tagsUnicos = {};
+  // ✅ REMOVIDO: Set<String> _tagsUnicos - El backend maneja duplicados
 
   // Getters
   Inventario? get inventarioActual => _inventarioActual;
@@ -22,7 +21,6 @@ class InventarioProvider extends ChangeNotifier {
   ResultadoInventario? get resultados => _resultados;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  int get tagsUnicos => _tagsUnicos.length;
 
   /// Crear un nuevo inventario
   Future<Inventario> createInventario({
@@ -40,7 +38,6 @@ class InventarioProvider extends ChangeNotifier {
       );
       _inventarioActual = inventario;
       _lecturas = [];
-      _tagsUnicos.clear();
       _resultados = null;
       debugPrint('🟢 [INVENTARIO PROVIDER] Inventario creado: ${inventario.id}');
       notifyListeners();
@@ -78,7 +75,8 @@ class InventarioProvider extends ChangeNotifier {
     }
   }
 
-  /// Enviar una lectura RFID individual
+  /// ⚠️ DEPRECADO: Usa procesarRfid() en api_service directamente
+  /// Enviar una lectura RFID individual (sin validación local)
   Future<LecturaRfid?> enviarLectura({
     required String rfidUid,
     String? tid,
@@ -90,12 +88,8 @@ class InventarioProvider extends ChangeNotifier {
       throw Exception('No hay inventario activo');
     }
 
-    // Verificar si ya se leyó este tag
-    if (_tagsUnicos.contains(rfidUid)) {
-      debugPrint('⚠️ [INVENTARIO PROVIDER] Tag ya leído: $rfidUid');
-      return null;
-    }
-
+    // ✅ SIMPLIFICADO: Envía siempre al backend
+    // El backend decide si es duplicado o nuevo
     try {
       final lectura = await _apiService.enviarLecturaRfid(
         inventarioId: _inventarioActual!.id,
@@ -106,7 +100,6 @@ class InventarioProvider extends ChangeNotifier {
         usuarioId: usuarioId,
       );
 
-      _tagsUnicos.add(rfidUid);
       _lecturas.add(lectura);
 
       debugPrint('🟢 [INVENTARIO PROVIDER] Lectura enviada: $rfidUid');
@@ -120,30 +113,29 @@ class InventarioProvider extends ChangeNotifier {
     }
   }
 
-  /// Enviar lecturas RFID en batch (usa RfidTag)
+  /// ⚠️ DEPRECADO: Usa procesarRfid() para cada tag individualmente
+  /// Enviar lecturas RFID en batch (sin filtrado local)
   Future<BatchResult?> enviarLecturasBatch(List<RfidTag> tags, {int? usuarioId}) async {
     if (_inventarioActual == null) {
       throw Exception('No hay inventario activo');
     }
 
-    // Filtrar solo lecturas nuevas
-    final tagsNuevos = tags.where((t) => !_tagsUnicos.contains(t.epc)).toList();
-    
-    if (tagsNuevos.isEmpty) {
-      debugPrint('⚠️ [INVENTARIO PROVIDER] No hay lecturas nuevas en el batch');
+    if (tags.isEmpty) {
+      debugPrint('⚠️ [INVENTARIO PROVIDER] Batch vacío');
       return null;
     }
 
+    // ✅ SIMPLIFICADO: Envía todos los tags al backend
+    // El backend deduplica automáticamente
     try {
       final resultado = await _apiService.enviarLecturasBatch(
         inventarioId: _inventarioActual!.id,
-        lecturas: tagsNuevos,
+        lecturas: tags,
         usuarioId: usuarioId,
       );
 
-      // Agregar a tags únicos y crear LecturaRfid locales
-      for (var tag in tagsNuevos) {
-        _tagsUnicos.add(tag.epc);
+      // Crear LecturaRfid locales para mostrar en UI
+      for (var tag in tags) {
         _lecturas.add(LecturaRfid(
           id: 0,
           inventarioId: _inventarioActual!.id,
@@ -240,7 +232,6 @@ class InventarioProvider extends ChangeNotifier {
   void clearInventario() {
     _inventarioActual = null;
     _lecturas = [];
-    _tagsUnicos.clear();
     _activosPendientes = null;
     _resultados = null;
     _error = null;

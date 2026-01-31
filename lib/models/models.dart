@@ -7,3 +7,4 @@ export 'categoria.dart';
 export 'activo.dart';
 export 'inventario.dart';
 export 'rfid_tag.dart';
+export 'rfid_response.dart';
