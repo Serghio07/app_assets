@@ -835,6 +835,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
   StreamSubscription<RfidTag>? _tagSubscription;
 
   final List<LecturaRfid> _escaneos = [];
+  final Map<int, Activo> _activosEscaneados = {}; // Mapa: lecturaId -> Activo
   List<Activo> _activosPendientes = [];
   final Set<String> _processedTags = {}; // Para evitar duplicados
   bool _isLoading = false;
@@ -1007,14 +1008,16 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
     debugPrint('✅ [INVENTARIO_SCANNER] Registrando escaneo: ${activo.codigoInterno}');
     
     setState(() {
+      final lecturaId = DateTime.now().millisecondsSinceEpoch;
       final lectura = LecturaRfid(
-        id: DateTime.now().millisecondsSinceEpoch,
+        id: lecturaId,
         inventarioId: widget.inventario.id,
         rfidUid: rfidUid,
         fechaLectura: DateTime.now(),
       );
       
       _escaneos.add(lectura);
+      _activosEscaneados[lecturaId] = activo; // Guardar referencia al activo
       _activosPendientes.removeWhere((a) => a.id == activo.id);
     });
     
@@ -1610,6 +1613,10 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
   }
 
   Widget _buildScanCard(LecturaRfid scan, {bool isScanned = false}) {
+    final activo = _activosEscaneados[scan.id];
+    final nombre = activo?.tipoActivo?.nombre ?? activo?.codigoInterno ?? 'Activo';
+    final codigo = activo?.codigoInterno ?? scan.rfidUid;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1634,7 +1641,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  scan.rfidUid,
+                  nombre,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -1642,6 +1649,14 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
                   ),
                 ),
                 const SizedBox(height: 4),
+                Text(
+                  codigo,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 2),
                 Text(
                   _formatTime(scan.fechaLectura),
                   style: TextStyle(
