@@ -2,23 +2,34 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 
-class SucursalesScreen extends StatefulWidget {
-  final Empresa empresa;
+class SucursalesStep extends StatefulWidget {
+  final String empresaId;
+  final VoidCallback onLoadStart;
+  final VoidCallback onLoadComplete;
+  final Function(String) onError;
+  final Function(Sucursal) onSucursalSelected;
 
-  const SucursalesScreen({super.key, required this.empresa});
+  const SucursalesStep({
+    super.key,
+    required this.empresaId,
+    required this.onLoadStart,
+    required this.onLoadComplete,
+    required this.onError,
+    required this.onSucursalSelected,
+  });
 
   @override
-  State<SucursalesScreen> createState() => _SucursalesScreenState();
+  State<SucursalesStep> createState() => _SucursalesStepState();
 }
 
-class _SucursalesScreenState extends State<SucursalesScreen> {
+class _SucursalesStepState extends State<SucursalesStep> {
   final ApiService _apiService = ApiService();
-  List<Sucursal> _sucursales = [];
+  List<Sucursal>? _sucursales;
+  Sucursal? _sucursalSeleccionada;
   bool _isLoading = true;
-  String? _error;
 
-  static const Color primaryColor = Color(0xFFE74C3C);
-  static const Color secondaryColor = Color(0xFFC0392B);
+  static const Color primaryColor = Color(0xFF2563EB);
+  static const Color secondaryColor = Color(0xFF374151);
 
   @override
   void initState() {
@@ -27,316 +38,182 @@ class _SucursalesScreenState extends State<SucursalesScreen> {
   }
 
   Future<void> _loadSucursales() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+    setState(() => _isLoading = true);
     try {
       final sucursales = await _apiService.getSucursales(
-        empresaId: widget.empresa.id,
+        empresaId: widget.empresaId,
       );
-      setState(() {
-        _sucursales = sucursales;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _sucursales = sucursales;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+        widget.onError('Error al cargar sucursales: $e');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Sucursales'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          // Info simple de la empresa
-          Container(
-            width: double.infinity,
-            color: primaryColor.withValues(alpha: 0.05),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Empresa: ${widget.empresa.nombre}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF555555),
-                  ),
-                ),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Selecciona una Sucursal', Icons.store_rounded),
+        const SizedBox(height: 16),
+        if (_isLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(color: primaryColor),
             ),
-          ),
-
-          // Lista de sucursales
-          Expanded(
-            child: _buildContent(),
-          ),
-        ],
-      ),
+          )
+        else if (_sucursales == null || _sucursales!.isEmpty)
+          _buildEmptyState('No hay sucursales disponibles', Icons.store_mall_directory_outlined)
+        else
+          ...List.generate(_sucursales!.length, (index) {
+            final sucursal = _sucursales![index];
+            final isSelected = _sucursalSeleccionada?.id == sucursal.id;
+            return _buildSelectionCard(
+              title: sucursal.nombre,
+              subtitle: sucursal.ciudad ?? 'Sin ciudad',
+              icon: Icons.store_rounded,
+              isSelected: isSelected,
+              onTap: () {
+                setState(() {
+                  _sucursalSeleccionada = sucursal;
+                });
+                widget.onSucursalSelected(sucursal);
+              },
+            );
+          }),
+      ],
     );
   }
 
-  Widget _buildContent() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: primaryColor),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.error_outline_rounded, size: 48, color: Colors.red.shade400),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Error al cargar sucursales',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                style: TextStyle(color: Colors.grey.shade500),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [primaryColor, secondaryColor]),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: ElevatedButton.icon(
-                  onPressed: _loadSucursales,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Reintentar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                  ),
-                ),
-              ),
-            ],
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: primaryColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: primaryColor, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade800,
           ),
         ),
-      );
-    }
-
-    if (_sucursales.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.store_mall_directory_outlined, size: 56, color: Colors.grey.shade400),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'No hay sucursales',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Esta empresa no tiene sucursales registradas',
-              style: TextStyle(color: Colors.grey.shade500),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadSucursales,
-      color: primaryColor,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: _sucursales.length,
-        itemBuilder: (context, index) {
-          final sucursal = _sucursales[index];
-          return _SucursalCard(
-            sucursal: sucursal,
-            onTap: () {
-              Navigator.pushNamed(
-                context,
-                '/ubicaciones',
-                arguments: {
-                  'empresa': widget.empresa,
-                  'sucursal': sucursal,
-                },
-              );
-            },
-          );
-        },
-      ),
+      ],
     );
   }
-}
 
-class _SucursalCard extends StatelessWidget {
-  final Sucursal sucursal;
-  final VoidCallback onTap;
-
-  static const Color accentColor = Color(0xFFF59E0B);
-
-  const _SucursalCard({
-    required this.sucursal,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildSelectionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+    Color color = primaryColor,
+  }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? color : Colors.grey.shade200,
+          width: isSelected ? 2 : 1,
+        ),
+        boxShadow: isSelected
+            ? [BoxShadow(
+                color: color.withValues(alpha: 0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              )]
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [accentColor, accentColor.withValues(alpha: 0.8)],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: accentColor.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
+                    color: isSelected ? color : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.store_rounded,
-                    color: Colors.white,
-                    size: 26,
+                  child: Icon(
+                    isSelected ? Icons.check_circle_rounded : icon,
+                    color: isSelected ? Colors.white : Colors.grey.shade500,
+                    size: 24,
                   ),
                 ),
-                const SizedBox(width: 18),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        sucursal.nombre,
+                        title,
                         style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
                           color: Colors.grey.shade800,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          if (sucursal.ciudad != null) ...[
-                            Icon(
-                              Icons.location_on_outlined,
-                              size: 14,
-                              color: Colors.grey.shade500,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              sucursal.ciudad!,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade500,
-                              ),
-                            ),
-                          ],
-                          if (sucursal.codigo != null) ...[
-                            const SizedBox(width: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                sucursal.codigo!,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade500,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: Colors.grey.shade400,
-                    size: 16,
-                  ),
-                ),
+                if (isSelected)
+                  Icon(Icons.check_rounded, color: color, size: 24),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(40),
+      child: Column(
+        children: [
+          Icon(icon, size: 64, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade500,
+            ),
+          ),
+        ],
       ),
     );
   }

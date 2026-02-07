@@ -12,8 +12,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const Color primaryColor = Color(0xFFE74C3C);
-  static const Color secondaryColor = Color(0xFFC0392B);
+  static const Color primaryColor = Color(0xFF2563EB);
+  static const Color secondaryColor = Color(0xFF374151);
+  static const Color successColor = Color(0xFF22C55E);
+  static const Color bgColor = Color(0xFFF9FAFB);
   
   final BluetoothRfidService _bluetoothService = BluetoothRfidService();
 
@@ -37,9 +39,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        title: const Text('Inicio'),
+        title: const Text('Sistema RFID'),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -55,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(
                   color: isConnected 
-                      ? Colors.green.withValues(alpha: 0.3)
+                      ? successColor.withValues(alpha: 0.3)
                       : Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -71,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         )
                       : Icon(
                           isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
-                          color: isConnected ? Colors.greenAccent : Colors.white,
+                          color: isConnected ? successColor : Colors.white,
                         ),
                   tooltip: isConnected 
                       ? 'Conectado: ${_bluetoothService.connectedDeviceName}'
@@ -103,16 +105,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.red.shade50,
+                            color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(Icons.logout_rounded, color: Colors.red.shade400),
+                          child: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
                         ),
                         const SizedBox(width: 12),
                         const Text('Cerrar sesión'),
                       ],
                     ),
-                    content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
+                    content: const Text('¿Deseas cerrar tu sesión?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
@@ -121,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ElevatedButton(
                         onPressed: () => Navigator.pop(context, true),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade400,
+                          backgroundColor: const Color(0xFFEF4444),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -152,181 +154,386 @@ class _HomeScreenState extends State<HomeScreen> {
           return SingleChildScrollView(
             child: Column(
               children: [
-                // Info simple - minimalista
+                // Header con gradiente
                 Container(
                   width: double.infinity,
-                  color: primaryColor.withValues(alpha: 0.05),
-                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [primaryColor, Color(0xFF1E40AF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Usuario: ${usuario?.nombre ?? 'Usuario'}',
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF666666)),
+                        'Bienvenido',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
-                        'Empresa: ${empresa?.nombre ?? 'Sin empresa asignada'}',
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF666666)),
+                        usuario?.nombre ?? 'Usuario',
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.business_rounded, color: Colors.white, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              empresa?.nombre ?? 'Sin empresa asignada',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 32),
 
                 // Contenido principal
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: primaryColor,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Acciones rápidas',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade800,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
+                      // Sección Bluetooth
+                      _buildBluetoothSection(),
+                      const SizedBox(height: 32),
 
-                      // Card de conexión Bluetooth - simplificado
-                      ListenableBuilder(
-                        listenable: _bluetoothService,
-                        builder: (context, _) {
-                          final isConnected = _bluetoothService.isConnected;
-                          final isConnecting = _bluetoothService.isConnecting;
-                          
-                          return GestureDetector(
-                            onTap: _showBluetoothDialog,
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                border: Border.all(color: Colors.grey.shade200),
-                                borderRadius: BorderRadius.circular(12),
+                      // Acciones principales
+                      Text(
+                        'Acciones principales',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Nuevo Inventario
+                      _buildActionCard(
+                        title: 'Nuevo Inventario',
+                        description: 'Realizar conteo de activos',
+                        icon: Icons.inventory_2_rounded,
+                        color: primaryColor,
+                        onTap: () {
+                          if (empresa != null && usuario != null) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => InventarioScreen(
+                                  empresaId: empresa.id,
+                                  usuarioId: usuario.id,
+                                  usuario: usuario,
+                                ),
                               ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isConnecting ? Icons.hourglass_empty_rounded : (isConnected ? Icons.bluetooth_connected : Icons.bluetooth),
-                                    color: isConnected ? Colors.green : Colors.grey,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          isConnected ? 'Lector Conectado' : 'Conectar Lector RFID',
-                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                                        ),
-                                        Text(
-                                          isConnected ? (_bluetoothService.connectedDeviceName ?? 'BTR') : 'Buscar dispositivos',
-                                          style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: Colors.grey.shade400,
-                                    size: 20,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
+                            );
+                          } else {
+                            _showError('No hay empresa asignada');
+                          }
                         },
                       ),
-                      const SizedBox(height: 20),
 
-                      // Botón Nuevo Inventario
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: primaryColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () {
-                              if (empresa != null && usuario != null) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => InventarioScreen(
-                                      empresaId: empresa.id,
-                                      usuarioId: usuario.id,
-                                      usuario: usuario,
-                                    ),
-                                  ),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Row(
-                                      children: [
-                                        Icon(Icons.warning_amber_rounded, color: Colors.white),
-                                        SizedBox(width: 12),
-                                        Text('No hay empresa asignada'),
-                                      ],
-                                    ),
-                                    backgroundColor: Colors.orange.shade600,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 24),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text('Nuevo Inventario', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
-                                      const SizedBox(height: 4),
-                                      Text('Realizar conteo de activos', style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                      const SizedBox(height: 12),
+
+                      // Ver Resultados
+                      _buildActionCard(
+                        title: 'Resultados',
+                        description: 'Ver inventarios completados',
+                        icon: Icons.assessment_rounded,
+                        color: successColor,
+                        onTap: () {
+                          Navigator.pushNamed(context, '/resultados');
+                        },
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      // Información rápida
+                      Text(
+                        'Información',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey.shade800,
                         ),
                       ),
+                      const SizedBox(height: 16),
+
+                      _buildInfoCard(
+                        title: 'Conexión Bluetooth',
+                        value: _bluetoothService.isConnected
+                            ? 'Dispositivo conectado'
+                            : 'No conectado',
+                        icon: Icons.bluetooth_rounded,
+                        valueColor: _bluetoothService.isConnected ? successColor : Colors.grey,
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      _buildInfoCard(
+                        title: 'Usuario Logueado',
+                        value: usuario?.nombre ?? 'Sin información',
+                        icon: Icons.person_rounded,
+                        valueColor: primaryColor,
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      _buildInfoCard(
+                        title: 'Empresa Asignada',
+                        value: empresa?.nombre ?? 'Sin empresa',
+                        icon: Icons.business_rounded,
+                        valueColor: primaryColor,
+                      ),
+
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildBluetoothSection() {
+    return ListenableBuilder(
+      listenable: _bluetoothService,
+      builder: (context, _) {
+        final isConnected = _bluetoothService.isConnected;
+        final isConnecting = _bluetoothService.isConnecting;
+        
+        return GestureDetector(
+          onTap: _showBluetoothDialog,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: isConnected
+                  ? LinearGradient(
+                      colors: [successColor.withValues(alpha: 0.1), successColor.withValues(alpha: 0.05)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              color: !isConnected ? Colors.white : null,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isConnected ? successColor.withValues(alpha: 0.3) : Colors.grey.shade200,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isConnected ? successColor.withValues(alpha: 0.15) : primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isConnecting
+                        ? Icons.hourglass_empty_rounded
+                        : (isConnected ? Icons.bluetooth_connected : Icons.bluetooth),
+                    color: isConnected ? successColor : primaryColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isConnected ? 'Lector RFID Conectado' : 'Conectar Lector RFID',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isConnected
+                            ? (_bluetoothService.connectedDeviceName ?? 'Dispositivo conectado')
+                            : 'Toca para emparejar un lector',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  isConnected ? Icons.check_circle_rounded : Icons.chevron_right,
+                  color: isConnected ? successColor : Colors.grey.shade400,
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionCard({
+    required String title,
+    required String description,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color.withValues(alpha: 0.08), color.withValues(alpha: 0.03)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_rounded, color: color, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color valueColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: valueColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: valueColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -344,8 +551,9 @@ class _BluetoothConnectionSheet extends StatefulWidget {
 }
 
 class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
-  static const Color primaryColor = Color(0xFFE74C3C);
-  static const Color secondaryColor = Color(0xFFC0392B);
+  static const Color primaryColor = Color(0xFF2563EB);
+  static const Color secondaryColor = Color(0xFF374151);
+  static const Color successColor = Color(0xFF22C55E);
   
   bool _isScanning = false;
   String? _error;
@@ -401,7 +609,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
               Text('Conectado a ${device.name}'),
             ],
           ),
-          backgroundColor: Colors.green.shade600,
+          backgroundColor: successColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -418,7 +626,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
               Text('Error al conectar: ${widget.bluetoothService.lastError ?? 'Desconocido'}'),
             ],
           ),
-          backgroundColor: Colors.red.shade600,
+          backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -465,7 +673,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [primaryColor, secondaryColor],
+                          colors: [primaryColor, Color(0xFF1E40AF)],
                         ),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
@@ -527,19 +735,19 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                   margin: const EdgeInsets.symmetric(horizontal: 20),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
+                    color: successColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                    border: Border.all(color: successColor.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.2),
+                          color: successColor.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.bluetooth_connected, color: Colors.green),
+                        child: const Icon(Icons.bluetooth_connected, color: successColor),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -822,10 +1030,10 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
             ? Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.green.shade100,
+                  color: successColor.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.check, color: Colors.green.shade700, size: 20),
+                child: const Icon(Icons.check, color: successColor, size: 20),
               )
             : ElevatedButton(
                 onPressed: isConnecting
@@ -852,8 +1060,8 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
   }
 
   Color _getRssiColor(int rssi) {
-    if (rssi >= -50) return Colors.green;
+    if (rssi >= -50) return successColor;
     if (rssi >= -70) return Colors.orange;
-    return Colors.red;
+    return const Color(0xFFEF4444);
   }
 }

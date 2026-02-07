@@ -13,13 +13,13 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // Colores principales de la app - Paleta Turquesa
-  static const Color primaryColor = Color(0xFF00BCD4);  // Turquesa
-  static const Color secondaryColor = Color(0xFF00838F); // Turquesa Oscuro
-  static const Color accentColor = Color(0xFF4DD0E1);   // Turquesa Claro
-  static const Color successColor = Color(0xFF10B981);  // Emerald
+  // Colores principales de la app - Paleta Azul
+  static const Color primaryColor = Color(0xFF2563EB);  // Azul
+  static const Color secondaryColor = Color(0xFF374151); // Gris Oscuro
+  static const Color accentColor = Color(0xFF3B82F6);   // Azul Claro
+  static const Color successColor = Color(0xFF22C55E);  // Verde
   static const Color warningColor = Color(0xFFF59E0B);  // Amber
-  static const Color errorColor = Color(0xFFEF4444);    // Red
+  static const Color errorColor = Color(0xFFEF4444);    // Rojo
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +41,7 @@ class MyApp extends StatelessWidget {
           ),
           useMaterial3: true,
           fontFamily: 'Roboto',
-          scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+          scaffoldBackgroundColor: const Color(0xFFF9FAFB),
           appBarTheme: const AppBarTheme(
             centerTitle: true,
             elevation: 0,
@@ -160,28 +160,6 @@ class MyApp extends StatelessWidget {
       case '/home':
         return MaterialPageRoute(
           builder: (_) => const HomeScreen(),
-        );
-      case '/sucursales':
-        final empresa = settings.arguments as Empresa;
-        return MaterialPageRoute(
-          builder: (_) => SucursalesScreen(empresa: empresa),
-        );
-      case '/ubicaciones':
-        final args = settings.arguments as Map<String, dynamic>;
-        return MaterialPageRoute(
-          builder: (_) => UbicacionesScreen(
-            empresa: args['empresa'] as Empresa,
-            sucursal: args['sucursal'] as Sucursal,
-          ),
-        );
-      case '/activos':
-        final args = settings.arguments as Map<String, dynamic>;
-        return MaterialPageRoute(
-          builder: (_) => ActivosScreen(
-            empresa: args['empresa'] as Empresa,
-            sucursal: args['sucursal'] as Sucursal,
-            ubicacion: args['ubicacion'] as Ubicacion,
-          ),
         );
       case '/escaneo':
         final args = settings.arguments as Map<String, dynamic>;

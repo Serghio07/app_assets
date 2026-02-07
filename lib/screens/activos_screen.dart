@@ -1,33 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
-import '../providers/providers.dart';
 
-class ActivosScreen extends StatefulWidget {
-  final Empresa empresa;
-  final Sucursal sucursal;
-  final Ubicacion ubicacion;
+class ActivosStep extends StatefulWidget {
+  final String empresaId;
+  final Sucursal sucursalSeleccionada;
+  final Ubicacion ubicacionSeleccionada;
+  final VoidCallback onLoadStart;
+  final VoidCallback onLoadComplete;
+  final Function(String) onError;
+  final Function(List<Activo>) onActivosLoaded;
 
-  const ActivosScreen({
+  const ActivosStep({
     super.key,
-    required this.empresa,
-    required this.sucursal,
-    required this.ubicacion,
+    required this.empresaId,
+    required this.sucursalSeleccionada,
+    required this.ubicacionSeleccionada,
+    required this.onLoadStart,
+    required this.onLoadComplete,
+    required this.onError,
+    required this.onActivosLoaded,
   });
 
   @override
-  State<ActivosScreen> createState() => _ActivosScreenState();
+  State<ActivosStep> createState() => _ActivosStepState();
 }
 
-class _ActivosScreenState extends State<ActivosScreen> {
+class _ActivosStepState extends State<ActivosStep> {
   final ApiService _apiService = ApiService();
-  List<Activo> _activos = [];
+  List<Activo>? _activos;
   bool _isLoading = true;
-  String? _error;
 
-  static const Color primaryColor = Color(0xFFE74C3C);
-  static const Color secondaryColor = Color(0xFFC0392B);
+  static const Color primaryColor = Color(0xFF2563EB);
+  static const Color secondaryColor = Color(0xFF374151);
 
   @override
   void initState() {
@@ -36,283 +41,214 @@ class _ActivosScreenState extends State<ActivosScreen> {
   }
 
   Future<void> _loadActivos() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+    setState(() => _isLoading = true);
     try {
       final activos = await _apiService.getActivosPorUbicacion(
-        empresaId: widget.empresa.id,
-        ubicacionId: widget.ubicacion.id,
+        empresaId: widget.empresaId,
+        ubicacionId: widget.ubicacionSeleccionada.id,
       );
-      setState(() {
-        _activos = activos;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _activos = activos;
+          _isLoading = false;
+        });
+        widget.onActivosLoaded(activos);
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+        widget.onError('Error al cargar activos: $e');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Activos'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          // Info simple
-          Container(
-            width: double.infinity,
-            color: primaryColor.withValues(alpha: 0.05),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Empresa: ${widget.empresa.nombre}', style: const TextStyle(fontSize: 12, color: Color(0xFF666666))),
-                const SizedBox(height: 4),
-                Text('Sucursal: ${widget.sucursal.nombre}', style: const TextStyle(fontSize: 12, color: Color(0xFF666666))),
-                const SizedBox(height: 4),
-                Text('Ubicación: ${widget.ubicacion.nombre}', style: const TextStyle(fontSize: 12, color: Color(0xFF666666))),
-                const SizedBox(height: 8),
-                Text('${_activos.length} activos', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: primaryColor)),
-              ],
-            ),
-          ),
-          // Lista
-          Expanded(child: _buildContent()),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator(color: primaryColor)));
-          try {
-            final authProvider = context.read<AuthProvider>();
-            final inventarioProvider = context.read<InventarioProvider>();
-            final inventario = await inventarioProvider.createInventario(
-              empresaId: int.parse(widget.empresa.id),
-              ubicacionId: int.parse(widget.ubicacion.id),
-            );
-            if (!mounted) return;
-            Navigator.pop(context);
-            Navigator.pushNamed(context, '/escaneo', arguments: {
-              'inventarioId': inventario.id,
-              'empresaId': int.parse(widget.empresa.id),
-              'ubicacionId': int.parse(widget.ubicacion.id),
-              'ubicacionNombre': widget.ubicacion.nombre,
-              'usuarioId': authProvider.usuario?.id != null ? int.tryParse(authProvider.usuario!.id) : null,
-            });
-          } catch (e) {
-            if (!mounted) return;
-            Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(children: [const Icon(Icons.error_outline, color: Colors.white), const SizedBox(width: 12), Expanded(child: Text('Error: $e'))]),
-                backgroundColor: Colors.red.shade400,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            );
-          }
-        },
-        backgroundColor: primaryColor,
-        icon: const Icon(Icons.qr_code_scanner_rounded),
-        label: const Text('Escanear'),
-      ),
-    );
-  }
-
-  Widget _buildContent() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator(color: primaryColor));
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline_rounded, size: 48, color: Colors.red.shade400),
-              const SizedBox(height: 16),
-              Text('Error al cargar activos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
-              const SizedBox(height: 8),
-              Text(_error!, style: TextStyle(color: Colors.grey.shade500), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(onPressed: _loadActivos, icon: const Icon(Icons.refresh_rounded), label: const Text('Reintentar'), style: ElevatedButton.styleFrom(backgroundColor: primaryColor, foregroundColor: Colors.white)),
-            ],
-          ),
-        ),
-      );
-    }
-    if (_activos.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Badges: Sucursal + Ubicación seleccionadas
+        Wrap(
+          spacing: 8,
+          runSpacing: 12,
           children: [
-            Icon(Icons.inbox_rounded, size: 56, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text('No hay activos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+            _buildSelectedBadge(
+              widget.sucursalSeleccionada.nombre,
+              Icons.store_rounded,
+              compact: true,
+            ),
+            _buildSelectedBadge(
+              widget.ubicacionSeleccionada.nombre,
+              Icons.location_on_rounded,
+              color: const Color(0xFF22C55E),
+              compact: true,
+            ),
           ],
         ),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: _loadActivos,
-      color: primaryColor,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _activos.length,
-        itemBuilder: (context, index) {
-          final activo = _activos[index];
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _showActivoDetails(activo),
-                borderRadius: BorderRadius.circular(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(_getIconForActivo(activo.tipoActivo?.nombre), size: 20, color: primaryColor),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(activo.tipoActivo?.nombre ?? 'Activo', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 2),
-                              Text(activo.codigoInterno, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                            ],
-                          ),
-                        ),
-                        if (activo.estadoActivo != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: _getEstadoColor(activo.estadoActivo!.nombre).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-                            child: Text(activo.estadoActivo!.nombre, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _getEstadoColor(activo.estadoActivo!.nombre))),
-                          ),
-                      ],
-                    ),
-                    if (activo.rfidUid != null) ...[
-                      const SizedBox(height: 10),
-                      Text('RFID: ${activo.rfidUid}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontFamily: 'monospace')),
-                    ],
-                  ],
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionTitle('Activos a Inventariar', Icons.inventory_2_rounded),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [primaryColor, secondaryColor],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${_activos?.length ?? 0} activos',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
                 ),
               ),
             ),
-          );
-        },
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (_isLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(color: primaryColor),
+            ),
+          )
+        else if (_activos == null || _activos!.isEmpty)
+          _buildEmptyState('No hay activos en esta ubicación', Icons.inventory_2_outlined)
+        else
+          ...List.generate(_activos!.length, (index) {
+            final activo = _activos![index];
+            return _buildActivoCard(activo);
+          }),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: primaryColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: primaryColor, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade800,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelectedBadge(
+    String text,
+    IconData icon, {
+    Color color = const Color(0xFFE74C3C),
+    bool compact = false,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 12 : 14,
+        vertical: compact ? 8 : 10,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          Icon(icon, color: color, size: compact ? 16 : 18),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: compact ? 12 : 14,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _showActivoDetails(Activo activo) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        minChildSize: 0.3,
-        maxChildSize: 0.8,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-            child: ListView(
-              controller: scrollController,
-              padding: const EdgeInsets.all(20),
+  Widget _buildActivoCard(Activo activo) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.inventory_2_rounded, color: primaryColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 20),
-                Text(activo.tipoActivo?.nombre ?? 'Activo', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text(activo.codigoInterno, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
-                const SizedBox(height: 20),
-                _DetailSection('Información', [
-                  ('Código', activo.codigoInterno),
-                  if (activo.rfidUid != null) ('RFID', activo.rfidUid!),
-                  if (activo.estadoActivo != null) ('Estado', activo.estadoActivo!.nombre),
-                  if (activo.valorInicial != null) ('Valor', '\$${activo.valorInicial!.toStringAsFixed(2)}'),
-                ]),
-                if (activo.responsable != null) ...[
-                  const SizedBox(height: 16),
-                  _DetailSection('Responsable', [
-                    ('Nombre', activo.responsable!.nombre),
-                    ('Tipo', activo.responsable!.tipo),
-                    if (activo.responsable!.identificador != null) ('ID', activo.responsable!.identificador!),
-                  ]),
-                ],
+                Text(
+                  activo.tipoActivo?.nombre ?? 'Sin tipo',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  activo.codigoInterno,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
               ],
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 
-  IconData _getIconForActivo(String? nombre) {
-    if (nombre == null) return Icons.inventory_2_rounded;
-    final n = nombre.toLowerCase();
-    if (n.contains('laptop') || n.contains('computador')) return Icons.laptop_rounded;
-    if (n.contains('escritorio') || n.contains('mesa')) return Icons.desk_rounded;
-    if (n.contains('servidor')) return Icons.dns_rounded;
-    if (n.contains('monitor')) return Icons.monitor_rounded;
-    return Icons.inventory_2_rounded;
-  }
-
-  Color _getEstadoColor(String estado) {
-    final e = estado.toLowerCase();
-    if (e.contains('servicio') || e.contains('disponible')) return const Color(0xFF10B981);
-    if (e.contains('mantenimiento')) return const Color(0xFFF59E0B);
-    if (e.contains('baja')) return const Color(0xFFEF4444);
-    return Colors.grey;
-  }
-}
-
-class _DetailSection extends StatelessWidget {
-  final String title;
-  final List<(String, String)> items;
-
-  const _DetailSection(this.title, this.items);
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildEmptyState(String message, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+      padding: const EdgeInsets.all(40),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF666666))),
-          const SizedBox(height: 12),
-          ...List.generate(
-            items.length,
-            (i) => Padding(
-              padding: EdgeInsets.only(bottom: i < items.length - 1 ? 10 : 0),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 80,
-                    child: Text(items[i].$1, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                  ),
-                  Expanded(child: Text(items[i].$2, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600), textAlign: TextAlign.end)),
-                ],
-              ),
+          Icon(icon, size: 64, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade500,
             ),
           ),
         ],
