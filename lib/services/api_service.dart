@@ -9,7 +9,7 @@ class ApiService {
   //  IMPORTANTE: Usando IP local de la PC para dispositivos físicos Android
   // - El dispositivo debe estar conectado a la misma red WiFi que la PC
   // - El backend debe estar corriendo en 0.0.0.0:3000
-  static const String baseUrl = 'http://192.168.100.142:3000/api/v1';
+  static const String baseUrl = 'http://192.168.0.179:3000/api/v1';
   
   // Logger helper
   void _log(String message) {

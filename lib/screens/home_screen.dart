@@ -12,8 +12,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const Color primaryColor = Color(0xFF00BCD4);
-  static const Color secondaryColor = Color(0xFF00838F);
+  static const Color primaryColor = Color(0xFFE74C3C);
+  static const Color secondaryColor = Color(0xFFC0392B);
   
   final BluetoothRfidService _bluetoothService = BluetoothRfidService();
 
@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Inicio'),
         backgroundColor: primaryColor,
@@ -152,121 +152,24 @@ class _HomeScreenState extends State<HomeScreen> {
           return SingleChildScrollView(
             child: Column(
               children: [
-                // Header con información del usuario - Diseño moderno
+                // Info simple - minimalista
                 Container(
                   width: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        primaryColor,
-                        Color(0xFF0891B2),
-                        secondaryColor,
-                      ],
-                      stops: [0.0, 0.5, 1.0],
-                    ),
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(36),
-                      bottomRight: Radius.circular(36),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-                    child: Column(
-                      children: [
-                        // Avatar con borde
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.4),
-                              width: 3,
-                            ),
-                          ),
-                          child: CircleAvatar(
-                            radius: 42,
-                            backgroundColor: Colors.white,
-                            child: Text(
-                              usuario?.nombre.isNotEmpty == true
-                                  ? usuario!.nombre[0].toUpperCase()
-                                  : 'U',
-                              style: const TextStyle(
-                                fontSize: 34,
-                                fontWeight: FontWeight.bold,
-                                color: primaryColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Nombre del usuario
-                        Text(
-                          usuario?.nombre ?? 'Usuario',
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-
-                        // Email
-                        Text(
-                          usuario?.email ?? '',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withValues(alpha: 0.85),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Empresa - Badge moderno
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(50),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.25),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.business_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                empresa?.nombre ?? 'Sin empresa asignada',
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  color: primaryColor.withValues(alpha: 0.05),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Usuario: ${usuario?.nombre ?? 'Usuario'}',
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF666666)),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Empresa: ${empresa?.nombre ?? 'Sin empresa asignada'}',
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF666666)),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -301,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Card de conexión Bluetooth
+                      // Card de conexión Bluetooth - simplificado
                       ListenableBuilder(
                         listenable: _bluetoothService,
                         builder: (context, _) {
@@ -312,82 +215,39 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: _showBluetoothDialog,
                             child: Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: isConnected
-                                      ? [const Color(0xFF10B981), const Color(0xFF059669)]
-                                      : [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)],
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: (isConnected ? const Color(0xFF10B981) : const Color(0xFF3B82F6))
-                                        .withValues(alpha: 0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                                color: Colors.white,
+                                border: Border.all(color: Colors.grey.shade200),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: isConnecting
-                                        ? const SizedBox(
-                                            width: 28,
-                                            height: 28,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 3,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : Icon(
-                                            isConnected
-                                                ? Icons.bluetooth_connected
-                                                : Icons.bluetooth_searching,
-                                            color: Colors.white,
-                                            size: 28,
-                                          ),
+                                  Icon(
+                                    isConnecting ? Icons.hourglass_empty_rounded : (isConnected ? Icons.bluetooth_connected : Icons.bluetooth),
+                                    color: isConnected ? Colors.green : Colors.grey,
+                                    size: 20,
                                   ),
-                                  const SizedBox(width: 16),
+                                  const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          isConnected
-                                              ? 'Lector Conectado'
-                                              : 'Conectar Lector RFID',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                          isConnected ? 'Lector Conectado' : 'Conectar Lector RFID',
+                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                                         ),
-                                        const SizedBox(height: 4),
                                         Text(
-                                          isConnected
-                                              ? _bluetoothService.connectedDeviceName ?? 'BTR'
-                                              : 'Toca para buscar dispositivos BTR',
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.85),
-                                            fontSize: 14,
-                                          ),
+                                          isConnected ? (_bluetoothService.connectedDeviceName ?? 'BTR') : 'Buscar dispositivos',
+                                          style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
                                         ),
                                       ],
                                     ),
                                   ),
                                   Icon(
-                                    isConnected
-                                        ? Icons.check_circle
-                                        : Icons.arrow_forward_ios,
-                                    color: Colors.white.withValues(alpha: 0.8),
-                                    size: isConnected ? 28 : 20,
+                                    Icons.chevron_right,
+                                    color: Colors.grey.shade400,
+                                    size: 20,
                                   ),
                                 ],
                               ),
@@ -397,128 +257,67 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Botón Nuevo Inventario - Card principal
-                      _ModernActionCard(
-                        icon: Icons.inventory_2_rounded,
-                        title: 'Nuevo Inventario',
-                        subtitle: 'Realizar un nuevo conteo de activos',
-                        gradientColors: const [primaryColor, Color(0xFF26C6DA)],
-                        isMain: true,
-                        onTap: () {
-                          if (empresa != null && usuario != null) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => InventarioScreen(
-                                  empresaId: empresa.id,
-                                  usuarioId: usuario.id,
-                                  usuario: usuario,
-                                ),
-                              ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Row(
-                                  children: [
-                                    Icon(Icons.warning_amber_rounded, color: Colors.white),
-                                    SizedBox(width: 12),
-                                    Text('No hay empresa asignada'),
-                                  ],
-                                ),
-                                backgroundColor: Colors.orange.shade600,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Grid de opciones secundarias
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _ModernActionCard(
-                              icon: Icons.history_rounded,
-                              title: 'Historial',
-                              subtitle: 'Ver anteriores',
-                              gradientColors: const [Color(0xFF10B981), Color(0xFF059669)],
-                              onTap: () {
+                      // Botón Nuevo Inventario
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              if (empresa != null && usuario != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => InventarioScreen(
+                                      empresaId: empresa.id,
+                                      usuarioId: usuario.id,
+                                      usuario: usuario,
+                                    ),
+                                  ),
+                                );
+                              } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: const Row(
                                       children: [
-                                        Icon(Icons.info_outline_rounded, color: Colors.white),
+                                        Icon(Icons.warning_amber_rounded, color: Colors.white),
                                         SizedBox(width: 12),
-                                        Text('Próximamente...'),
+                                        Text('No hay empresa asignada'),
                                       ],
                                     ),
+                                    backgroundColor: Colors.orange.shade600,
                                     behavior: SnackBarBehavior.floating,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
                                 );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _ModernActionCard(
-                              icon: Icons.qr_code_scanner_rounded,
-                              title: 'Escanear',
-                              subtitle: 'Buscar activo',
-                              gradientColors: const [secondaryColor, Color(0xFF00ACC1)],
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Row(
-                                      children: [
-                                        Icon(Icons.info_outline_rounded, color: Colors.white),
-                                        SizedBox(width: 12),
-                                        Text('Próximamente...'),
-                                      ],
-                                    ),
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 24),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Nuevo Inventario', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
+                                      const SizedBox(height: 4),
+                                      Text('Realizar conteo de activos', style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12)),
+                                    ],
                                   ),
-                                );
-                              },
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Tercera opción
-                      _ModernActionCard(
-                        icon: Icons.analytics_rounded,
-                        title: 'Reportes y Estadísticas',
-                        subtitle: 'Visualiza métricas de inventario',
-                        gradientColors: const [Color(0xFFF59E0B), Color(0xFFD97706)],
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Row(
-                                children: [
-                                  Icon(Icons.info_outline_rounded, color: Colors.white),
-                                  SizedBox(width: 12),
-                                  Text('Próximamente...'),
-                                ],
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          );
-                        },
+                        ),
                       ),
                     ],
                   ),
@@ -528,145 +327,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _ModernActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final List<Color> gradientColors;
-  final VoidCallback onTap;
-  final bool isMain;
-
-  const _ModernActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.gradientColors,
-    required this.onTap,
-    this.isMain = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: gradientColors[0].withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: EdgeInsets.all(isMain ? 24.0 : 20.0),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: gradientColors,
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: isMain
-                ? Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(
-                          icon,
-                          color: Colors.white,
-                          size: 36,
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              subtitle,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white.withValues(alpha: 0.9),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_forward_rounded,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(
-                          icon,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white.withValues(alpha: 0.85),
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
       ),
     );
   }
@@ -684,8 +344,8 @@ class _BluetoothConnectionSheet extends StatefulWidget {
 }
 
 class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
-  static const Color primaryColor = Color(0xFF00BCD4);
-  static const Color secondaryColor = Color(0xFF00838F);
+  static const Color primaryColor = Color(0xFFE74C3C);
+  static const Color secondaryColor = Color(0xFFC0392B);
   
   bool _isScanning = false;
   String? _error;

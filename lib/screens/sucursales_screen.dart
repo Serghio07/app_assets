@@ -17,8 +17,8 @@ class _SucursalesScreenState extends State<SucursalesScreen> {
   bool _isLoading = true;
   String? _error;
 
-  static const Color primaryColor = Color(0xFF00BCD4);
-  static const Color secondaryColor = Color(0xFF00838F);
+  static const Color primaryColor = Color(0xFFE74C3C);
+  static const Color secondaryColor = Color(0xFFC0392B);
 
   @override
   void initState() {
@@ -51,115 +51,31 @@ class _SucursalesScreenState extends State<SucursalesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Seleccionar Sucursal'),
+        title: const Text('Sucursales'),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: Column(
         children: [
-          // Header con información de la empresa
+          // Info simple de la empresa
           Container(
             width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [primaryColor, Color(0xFF26C6DA), secondaryColor],
-                stops: [0.0, 0.5, 1.0],
-              ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(32),
-                bottomRight: Radius.circular(32),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.business_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 18),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.empresa.nombre,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            if (widget.empresa.identificadorFiscal != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                widget.empresa.identificadorFiscal!,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
+            color: primaryColor.withValues(alpha: 0.05),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Empresa: ${widget.empresa.nombre}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF555555),
                   ),
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.info_outline_rounded,
-                          size: 16,
-                          color: Colors.white.withValues(alpha: 0.9),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Selecciona una sucursal para ver sus ubicaciones',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 

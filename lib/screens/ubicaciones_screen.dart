@@ -22,8 +22,8 @@ class _UbicacionesScreenState extends State<UbicacionesScreen> {
   bool _isLoading = true;
   String? _error;
 
-  static const Color primaryColor = Color(0xFF00BCD4);
-  static const Color secondaryColor = Color(0xFF00838F);
+  static const Color primaryColor = Color(0xFFE74C3C);
+  static const Color secondaryColor = Color(0xFFC0392B);
 
   @override
   void initState() {
@@ -57,155 +57,33 @@ class _UbicacionesScreenState extends State<UbicacionesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Seleccionar Ubicación'),
+        title: const Text('Ubicaciones'),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: Column(
         children: [
-          // Header con información de la sucursal
+          // Info simple
           Container(
             width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [primaryColor, Color(0xFF26C6DA), secondaryColor],
-                stops: [0.0, 0.5, 1.0],
-              ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(32),
-                bottomRight: Radius.circular(32),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Breadcrumb de empresa
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.business_rounded,
-                          size: 14,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          widget.empresa.nombre,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.store_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 18),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.sucursal.nombre,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            if (widget.sucursal.ciudad != null) ...[
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.location_on_rounded,
-                                    size: 14,
-                                    color: Colors.white.withValues(alpha: 0.85),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    widget.sucursal.ciudad!,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white.withValues(alpha: 0.85),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.info_outline_rounded,
-                          size: 16,
-                          color: Colors.white.withValues(alpha: 0.9),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Selecciona una ubicación para ver los activos',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            color: primaryColor.withValues(alpha: 0.05),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Empresa: ${widget.empresa.nombre}',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF666666)),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Sucursal: ${widget.sucursal.nombre}',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF666666)),
+                ),
+              ],
             ),
           ),
 
@@ -341,7 +219,7 @@ class _UbicacionCard extends StatelessWidget {
   final Ubicacion ubicacion;
   final VoidCallback onTap;
 
-  static const Color primaryColor = Color(0xFF00BCD4);
+  static const Color primaryColor = Color(0xFFE74C3C);
   static const Color successColor = Color(0xFF10B981);
 
   const _UbicacionCard({
@@ -518,3 +396,4 @@ class _UbicacionCard extends StatelessWidget {
     return Icons.location_on_rounded;
   }
 }
+

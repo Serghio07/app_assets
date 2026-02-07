@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -35,8 +35,8 @@ class _InventarioScreenState extends State<InventarioScreen> {
   bool _isLoading = false;
   int _currentStep = 0;
 
-  static const Color primaryColor = Color(0xFF00BCD4);
-  static const Color secondaryColor = Color(0xFF00838F);
+  static const Color primaryColor = Color(0xFFE74C3C);
+  static const Color secondaryColor = Color(0xFFC0392B);
 
   @override
   void initState() {
@@ -116,12 +116,12 @@ class _InventarioScreenState extends State<InventarioScreen> {
 
   Future<void> _startInventario() async {
     if (_sucursalSeleccionada == null || _ubicacionSeleccionada == null) {
-      _showErrorSnackBar('Selecciona sucursal y ubicación');
+      _showErrorSnackBar('Selecciona una sucursal');
       return;
     }
 
     if (_activos == null || _activos!.isEmpty) {
-      _showErrorSnackBar('No hay activos en esta ubicación');
+      _showErrorSnackBar('No hay activos en esta ubicaciÃ³n');
       return;
     }
 
@@ -129,8 +129,8 @@ class _InventarioScreenState extends State<InventarioScreen> {
       final inventarioProvider = context.read<InventarioProvider>();
       
       // Debug: imprimir IDs originales
-      debugPrint('🔵 [INVENTARIO SCREEN] empresaId original: "${widget.empresaId}"');
-      debugPrint('🔵 [INVENTARIO SCREEN] ubicacionId original: "${_ubicacionSeleccionada!.id}"');
+      debugPrint('ðŸ”µ [INVENTARIO SCREEN] empresaId original: "${widget.empresaId}"');
+      debugPrint('ðŸ”µ [INVENTARIO SCREEN] ubicacionId original: "${_ubicacionSeleccionada!.id}"');
       
       // Parsear IDs a int (el API espera enteros)
       final empresaIdInt = int.tryParse(widget.empresaId);
@@ -138,16 +138,16 @@ class _InventarioScreenState extends State<InventarioScreen> {
       
       // Validar que los IDs se parsearon correctamente
       if (empresaIdInt == null) {
-        _showErrorSnackBar('Error: empresaId no es un número válido: "${widget.empresaId}"');
+        _showErrorSnackBar('Error: empresaId no es un nÃºmero vÃ¡lido: "${widget.empresaId}"');
         return;
       }
       if (ubicacionIdInt == null) {
-        _showErrorSnackBar('Error: ubicacionId no es un número válido: "${_ubicacionSeleccionada!.id}"');
+        _showErrorSnackBar('Error: ubicacionId no es un nÃºmero vÃ¡lido: "${_ubicacionSeleccionada!.id}"');
         return;
       }
       
-      debugPrint('🔵 [INVENTARIO SCREEN] empresaId parseado: $empresaIdInt');
-      debugPrint('🔵 [INVENTARIO SCREEN] ubicacionId parseado: $ubicacionIdInt');
+      debugPrint('ðŸ”µ [INVENTARIO SCREEN] empresaId parseado: $empresaIdInt');
+      debugPrint('ðŸ”µ [INVENTARIO SCREEN] ubicacionId parseado: $ubicacionIdInt');
       
       final inventario = await inventarioProvider.createInventario(
         empresaId: empresaIdInt,
@@ -166,7 +166,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
         ),
       );
     } catch (e) {
-      debugPrint('🔴 [INVENTARIO SCREEN] Error al crear inventario: $e');
+      debugPrint('ðŸ”´ [INVENTARIO SCREEN] Error al crear inventario: $e');
       _showErrorSnackBar('Error: $e');
     }
   }
@@ -174,7 +174,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Nuevo Inventario'),
         elevation: 0,
@@ -183,64 +183,26 @@ class _InventarioScreenState extends State<InventarioScreen> {
       ),
       body: Column(
         children: [
-          // Header con gradiente
+          // Info simple - minimalista
           Container(
             width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [primaryColor, Color(0xFF26C6DA)],
-              ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(32),
-                bottomRight: Radius.circular(32),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Info del usuario
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.person_rounded, color: Colors.white, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.usuario.nombre,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            widget.usuario.empresa?.nombre ?? 'Empresa',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Stepper visual
-                  _buildStepper(),
-                ],
-              ),
+            color: primaryColor.withValues(alpha: 0.05),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Usuario: ${widget.usuario.nombre}',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF666666)),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Empresa: ${widget.usuario.empresa?.nombre ?? 'Empresa'}',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF666666)),
+                ),
+                const SizedBox(height: 16),
+                _buildStepper(),
+              ],
             ),
           ),
           
@@ -256,8 +218,8 @@ class _InventarioScreenState extends State<InventarioScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (_currentStep == 0) _buildSucursalesSection(),
-                        if (_currentStep >= 1) _buildUbicacionesSection(),
-                        if (_currentStep >= 2) _buildActivosSection(),
+                        if (_currentStep == 1) _buildUbicacionesSection(),
+                        if (_currentStep == 2) _buildActivosSection(),
                       ],
                     ),
                   ),
@@ -270,6 +232,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
 
   Widget _buildStepper() {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildStepIndicator(0, 'Sucursal', Icons.store_rounded),
         _buildStepLine(0),
@@ -284,59 +247,50 @@ class _InventarioScreenState extends State<InventarioScreen> {
     final isActive = _currentStep >= step;
     final isCurrent = _currentStep == step;
     
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: isActive 
-                  ? Colors.white 
-                  : Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-              border: isCurrent 
-                  ? Border.all(color: Colors.white, width: 3)
-                  : null,
-              boxShadow: isActive 
-                  ? [BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    )]
-                  : null,
-            ),
-            child: Icon(
-              icon,
-              color: isActive ? primaryColor : Colors.white.withValues(alpha: 0.6),
-              size: 22,
-            ),
+    return Column(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: isActive 
+                ? Colors.white 
+                : Colors.white.withValues(alpha: 0.2),
+            shape: BoxShape.circle,
+            border: isCurrent 
+                ? Border.all(color: Colors.white, width: 2)
+                : null,
           ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.6),
-              fontSize: 12,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-            ),
+          child: Icon(
+            icon,
+            color: isActive ? primaryColor : Colors.white.withValues(alpha: 0.6),
+            size: 18,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.6),
+            fontSize: 10,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildStepLine(int step) {
     final isComplete = _currentStep > step;
     return Container(
-      height: 3,
-      width: 30,
-      margin: const EdgeInsets.only(bottom: 24),
+      height: 2,
+      width: 20,
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: isComplete 
             ? Colors.white 
             : Colors.white.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(2),
+        borderRadius: BorderRadius.circular(1),
       ),
     );
   }
@@ -401,8 +355,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
-        // Selected sucursal badge
+        // Badge rojo: Sucursal seleccionada
         if (_sucursalSeleccionada != null) ...[
           _buildSelectedBadge(
             _sucursalSeleccionada!.nombre,
@@ -417,7 +370,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
               });
             },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
         ],
         _buildSectionTitle('Selecciona una Ubicación', Icons.location_on_rounded),
         const SizedBox(height: 16),
@@ -445,17 +398,19 @@ class _InventarioScreenState extends State<InventarioScreen> {
     );
   }
 
+
   Widget _buildActivosSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
-        // Selected badges
-        if (_sucursalSeleccionada != null && _ubicacionSeleccionada != null) ...[
-          Row(
+        // Badges: Sucursal + Ubicación seleccionadas
+        if (_sucursalSeleccionada != null || _ubicacionSeleccionada != null) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 12,
             children: [
-              Expanded(
-                child: _buildSelectedBadge(
+              if (_sucursalSeleccionada != null)
+                _buildSelectedBadge(
                   _sucursalSeleccionada!.nombre,
                   Icons.store_rounded,
                   compact: true,
@@ -469,10 +424,8 @@ class _InventarioScreenState extends State<InventarioScreen> {
                     });
                   },
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildSelectedBadge(
+              if (_ubicacionSeleccionada != null)
+                _buildSelectedBadge(
                   _ubicacionSeleccionada!.nombre,
                   Icons.location_on_rounded,
                   color: const Color(0xFFF59E0B),
@@ -485,7 +438,6 @@ class _InventarioScreenState extends State<InventarioScreen> {
                     });
                   },
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -515,7 +467,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
         ),
         const SizedBox(height: 16),
         if (_activos == null || _activos!.isEmpty)
-          _buildEmptyState('No hay activos en esta ubicación', Icons.inventory_2_outlined)
+          _buildEmptyState('No hay activos en esta ubicaciÃ³n', Icons.inventory_2_outlined)
         else
           ...List.generate(_activos!.length, (index) {
             final activo = _activos![index];
@@ -683,7 +635,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    _buildActivoTag('Código: ${activo.codigoInterno}', Icons.qr_code_rounded),
+                    _buildActivoTag('CÃ³digo: ${activo.codigoInterno}', Icons.qr_code_rounded),
                     if (activo.rfidUid != null) ...[
                       const SizedBox(width: 8),
                       _buildActivoTag('RFID', Icons.nfc_rounded),
@@ -839,53 +791,53 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
   bool _isLoading = false;
   late TabController _tabController;
   
-  // ✅ REMOVIDO: _activosPendientes - El backend tiene todos los activos
-  // ✅ REMOVIDO: _activosEscaneados - Usamos info del backend
-  // ✅ REMOVIDO: _processedTags - El backend maneja duplicados
+  // âœ… REMOVIDO: _activosPendientes - El backend tiene todos los activos
+  // âœ… REMOVIDO: _activosEscaneados - Usamos info del backend
+  // âœ… REMOVIDO: _processedTags - El backend maneja duplicados
 
-  static const Color primaryColor = Color(0xFF00BCD4);
+  static const Color primaryColor = Color(0xFFE74C3C);
   static const Color successColor = Color(0xFF10B981);
   static const Color warningColor = Color(0xFFF59E0B);
-  static const Color secondaryColor = Color(0xFF00838F);
+  static const Color secondaryColor = Color(0xFFC0392B);
 
   @override
   void initState() {
     super.initState();
-    debugPrint('🚀 [INVENTARIO_SCANNER] initState ejecutado!');
-    debugPrint('🔗 [INVENTARIO_SCANNER] Servicio Bluetooth (singleton): ${_bluetoothService.hashCode}');
+    debugPrint('ðŸš€ [INVENTARIO_SCANNER] initState ejecutado!');
+    debugPrint('ðŸ”— [INVENTARIO_SCANNER] Servicio Bluetooth (singleton): ${_bluetoothService.hashCode}');
     
-    // ✅ SIMPLIFICADO: Ya NO copiamos activos localmente
+    // âœ… SIMPLIFICADO: Ya NO copiamos activos localmente
     _rfidController.addListener(_onRfidScanned);
     _tabController = TabController(length: 2, vsync: this);
     
-    // ⭐ INICIAR ESCUCHA DE TAGS RFID
+    // â­ INICIAR ESCUCHA DE TAGS RFID
     _startBluetoothListener();
   }
   
-  // ✅ REMOVIDO: _isFuzzyMatch() - El backend tiene búsqueda inteligente con 3 estrategias
+  // âœ… REMOVIDO: _isFuzzyMatch() - El backend tiene bÃºsqueda inteligente con 3 estrategias
   
   void _startBluetoothListener() {
-    debugPrint('🎧 [INVENTARIO_SCANNER] Iniciando listener de tags Bluetooth...');
-    debugPrint('📋 [INVENTARIO_SCANNER] Total activos en ubicación: ${widget.activos.length}');
+    debugPrint('ðŸŽ§ [INVENTARIO_SCANNER] Iniciando listener de tags Bluetooth...');
+    debugPrint('ðŸ“‹ [INVENTARIO_SCANNER] Total activos en ubicaciÃ³n: ${widget.activos.length}');
     
     _tagSubscription?.cancel();
     _tagSubscription = _bluetoothService.tagStream.listen(
       _onBluetoothTagReceived,
-      onError: (error) => debugPrint('❌ [INVENTARIO_SCANNER] Error en stream: $error'),
-      onDone: () => debugPrint('⚠️ [INVENTARIO_SCANNER] Stream cerrado'),
+      onError: (error) => debugPrint('âŒ [INVENTARIO_SCANNER] Error en stream: $error'),
+      onDone: () => debugPrint('âš ï¸ [INVENTARIO_SCANNER] Stream cerrado'),
     );
-    debugPrint('✅ [INVENTARIO_SCANNER] Listener activo, esperando tags...');
+    debugPrint('âœ… [INVENTARIO_SCANNER] Listener activo, esperando tags...');
   }
   
-  /// ✅ SIMPLIFICADO: Solo envía al backend para procesamiento completo
+  /// âœ… SIMPLIFICADO: Solo envÃ­a al backend para procesamiento completo
   void _onBluetoothTagReceived(RfidTag tag) async {
-    debugPrint('🔵 [INVENTARIO_SCANNER] Tag Bluetooth recibido: ${tag.epc}');
+    debugPrint('ðŸ”µ [INVENTARIO_SCANNER] Tag Bluetooth recibido: ${tag.epc}');
     
-    // ✅ NUEVO: Enviar al backend para procesamiento completo
+    // âœ… NUEVO: Enviar al backend para procesamiento completo
     await _procesarRfidEnBackend(tag);
   }
   
-  /// ✅ NUEVO: Procesa RFID en backend con TODA la lógica
+  /// âœ… NUEVO: Procesa RFID en backend con TODA la lÃ³gica
   Future<void> _procesarRfidEnBackend(RfidTag tag) async {
     try {
       final respuesta = await _apiService.procesarRfid(
@@ -899,7 +851,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
       if (!mounted) return;
       
       if (respuesta.success && respuesta.activoEncontrado) {
-        // ✅ Activo encontrado - ACTUALIZAR ESTADO
+        // âœ… Activo encontrado - ACTUALIZAR ESTADO
         setState(() {
           // Agregar activo detectado
           if (respuesta.activo != null) {
@@ -929,24 +881,24 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
           }
         });
         
-        // Mostrar notificación SOLO para nuevos (no duplicados)
+        // Mostrar notificaciÃ³n SOLO para nuevos (no duplicados)
         if (respuesta.esDuplicado != true) {
-          final mensaje = '✅ ${respuesta.activo?.codigoInterno ?? tag.epc} detectado';
+          final mensaje = 'âœ… ${respuesta.activo?.codigoInterno ?? tag.epc} detectado';
           _mostrarNotificacion(mensaje, successColor);
         }
         
         // Mostrar warnings si existen
         if (respuesta.tieneWarnings) {
           for (var warning in respuesta.warnings) {
-            debugPrint('⚠️ WARNING: $warning');
+            debugPrint('âš ï¸ WARNING: $warning');
           }
         }
       } else {
-        // ❌ Error o no encontrado
+        // âŒ Error o no encontrado
         _mostrarNotificacion(respuesta.mensaje, Colors.red);
       }
     } catch (e) {
-      debugPrint('❌ Error procesando RFID en backend: $e');
+      debugPrint('âŒ Error procesando RFID en backend: $e');
     }
   }
   
@@ -971,8 +923,8 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
     );
   }
   
-  // ✅ REMOVIDO: _registrarEscaneo() - El backend procesa todo
-  // ✅ REMOVIDO: _enviarLecturaAlBackend() - procesarRfid() lo hace automáticamente
+  // âœ… REMOVIDO: _registrarEscaneo() - El backend procesa todo
+  // âœ… REMOVIDO: _enviarLecturaAlBackend() - procesarRfid() lo hace automÃ¡ticamente
 
   @override
   void dispose() {
@@ -983,7 +935,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
     super.dispose();
   }
 
-  /// ✅ SIMPLIFICADO: Solo envía al backend
+  /// âœ… SIMPLIFICADO: Solo envÃ­a al backend
   Future<void> _onRfidScanned() async {
     if (_rfidController.text.isEmpty) return;
 
@@ -993,7 +945,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
     setState(() => _isLoading = true);
 
     try {
-      // ✅ NUEVO: Usar procesarRfid del backend
+      // âœ… NUEVO: Usar procesarRfid del backend
       final respuesta = await _apiService.procesarRfid(
         inventarioId: widget.inventario.id,
         rfidUid: rfidUid,
@@ -1029,7 +981,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
           }
         });
         
-        // Mostrar notificación SOLO para nuevos (no duplicados)
+        // Mostrar notificaciÃ³n SOLO para nuevos (no duplicados)
         if (respuesta.esDuplicado != true) {
           _mostrarNotificacion(respuesta.mensaje, successColor);
         }
@@ -1058,7 +1010,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
   }
 
   Future<void> _completeInventario() async {
-    // ✅ SIMPLIFICADO: Calcular pendientes desde datos del backend
+    // âœ… SIMPLIFICADO: Calcular pendientes desde datos del backend
     final escaneados = _activosDetectados.length;
     final total = widget.activos.length;
     final pendientes = total - escaneados;
@@ -1086,7 +1038,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
             builder: (context) {
               final pendientes = widget.activos.length - _activosDetectados.length;
               return Text(
-                'Quedan $pendientes activos por escanear.\n¿Deseas completar de todas formas?',
+                'Quedan $pendientes activos por escanear.\nÂ¿Deseas completar de todas formas?',
               );
             },
           ),
@@ -1130,7 +1082,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
                 child: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 12),
-              const Text('¡Inventario completado exitosamente!'),
+              const Text('Â¡Inventario completado exitosamente!'),
             ],
           ),
           backgroundColor: successColor,
@@ -1151,8 +1103,8 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
 
   @override
   Widget build(BuildContext context) {
-    // ✅ SIMPLIFICADO: Calcular estadísticas desde backend
-    final int escaneados = _activosDetectados.length; // Activos únicos detectados
+    // âœ… SIMPLIFICADO: Calcular estadÃ­sticas desde backend
+    final int escaneados = _activosDetectados.length; // Activos Ãºnicos detectados
     final int total = widget.activos.length;
     final int pendientes = total - escaneados;
     final double porcentaje = total > 0 ? (escaneados / total) : 0;
@@ -1176,10 +1128,10 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
                   child: Icon(Icons.exit_to_app_rounded, color: Colors.red.shade400),
                 ),
                 const SizedBox(width: 12),
-                const Text('¿Salir del inventario?'),
+                const Text('Â¿Salir del inventario?'),
               ],
             ),
-            content: const Text('Se perderá el progreso del inventario actual.'),
+            content: const Text('Se perderÃ¡ el progreso del inventario actual.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -1229,7 +1181,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [primaryColor, Color(0xFF26C6DA)],
+                        colors: [primaryColor, Color(0xFFF39C12)],
                       ),
                       borderRadius: BorderRadius.only(
                         bottomLeft: Radius.circular(32),
@@ -1243,7 +1195,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
                           // Progreso circular
                           Row(
                             children: [
-                              // Círculo de progreso
+                              // CÃ­rculo de progreso
                               SizedBox(
                                 width: 80,
                                 height: 80,
@@ -1337,7 +1289,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                         decoration: InputDecoration(
-                          hintText: 'Acerca el RFID o ingresa código',
+                          hintText: 'Acerca el RFID o ingresa cÃ³digo',
                           hintStyle: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.normal),
                           prefixIcon: Container(
                             margin: const EdgeInsets.all(12),
@@ -1414,7 +1366,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
                       children: [
                         // Tab escaneados
                         _escaneos.isEmpty
-                            ? _buildEmptyTab('No hay escaneos aún', Icons.nfc_rounded, 'Acerca un activo con RFID')
+                            ? _buildEmptyTab('No hay escaneos aÃºn', Icons.nfc_rounded, 'Acerca un activo con RFID')
                             : ListView.builder(
                                 padding: const EdgeInsets.all(20),
                                 itemCount: _escaneos.length,
@@ -1423,14 +1375,14 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
                                   return _buildScanCard(scan, isScanned: true);
                                 },
                               ),
-                        // Tab pendientes - ✅ Calcular dinámicamente
+                        // Tab pendientes - âœ… Calcular dinÃ¡micamente
                         () {
                           final activosPendientes = widget.activos
                               .where((a) => !_activosDetectados.values.any((info) => info.id == a.id))
                               .toList();
                           
                           return activosPendientes.isEmpty
-                              ? _buildEmptyTab('¡Todos escaneados!', Icons.celebration_rounded, 'Excelente trabajo')
+                              ? _buildEmptyTab('Â¡Todos escaneados!', Icons.celebration_rounded, 'Excelente trabajo')
                               : ListView.builder(
                                   padding: const EdgeInsets.all(20),
                                   itemCount: activosPendientes.length,
@@ -1447,7 +1399,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
               ),
         floatingActionButton: Builder(
           builder: (context) {
-            // ✅ Calcular pendientes dinámicamente
+            // âœ… Calcular pendientes dinÃ¡micamente
             final pendientes = widget.activos.length - _activosDetectados.length;
             final hayPendientes = pendientes > 0;
             
@@ -1539,7 +1491,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
   }
 
   Widget _buildScanCard(LecturaRfid scan, {bool isScanned = false}) {
-    // ✅ Obtener info del activo desde backend
+    // âœ… Obtener info del activo desde backend
     final activoInfo = _activosDetectados[scan.rfidUid];
     final nombre = activoInfo?.tipoActivo ?? 'Activo';
     final codigo = activoInfo?.codigoInterno ?? scan.rfidUid;
@@ -1634,7 +1586,7 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Código: ${activo.codigoInterno}',
+                  'CÃ³digo: ${activo.codigoInterno}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade500,
@@ -1672,3 +1624,5 @@ class _InventarioScannerScreenState extends State<InventarioScannerScreen> with 
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 }
+
+

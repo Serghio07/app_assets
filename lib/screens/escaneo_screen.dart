@@ -53,9 +53,9 @@ class _EscaneoScreenState extends State<EscaneoScreen> with SingleTickerProvider
   late Animation<double> _pulseAnimation;
 
   // Colores del tema
-  static const Color primaryColor = Color(0xFF00BCD4);
-  static const Color secondaryColor = Color(0xFF00838F);
-  static const Color accentColor = Color(0xFF26C6DA);
+  static const Color primaryColor = Color(0xFFE74C3C);
+  static const Color secondaryColor = Color(0xFFC0392B);
+  static const Color accentColor = Color(0xFFF39C12);
 
   @override
   void initState() {
@@ -1230,12 +1230,12 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF00BCD4).withValues(alpha: 0.1),
+                        color: const Color(0xFFE74C3C).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
                         Icons.bluetooth,
-                        color: Color(0xFF00BCD4),
+                        color: Color(0xFFE74C3C),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1341,7 +1341,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00BCD4)),
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE74C3C)),
                         ),
                         SizedBox(height: 16),
                         Text(
@@ -1384,7 +1384,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                               icon: const Icon(Icons.refresh),
                               label: const Text('Buscar de nuevo'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF00BCD4),
+                                backgroundColor: const Color(0xFFE74C3C),
                                 foregroundColor: Colors.white,
                               ),
                             ),
@@ -1411,7 +1411,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                                 color: isConnected
                                     ? Colors.green.withValues(alpha: 0.3)
                                     : device.isRfidReader
-                                        ? const Color(0xFF00BCD4).withValues(alpha: 0.3)
+                                        ? const Color(0xFFE74C3C).withValues(alpha: 0.3)
                                         : Colors.grey.withValues(alpha: 0.2),
                               ),
                             ),
@@ -1424,7 +1424,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
                                   color: device.isRfidReader
-                                      ? const Color(0xFF00BCD4).withValues(alpha: 0.1)
+                                      ? const Color(0xFFE74C3C).withValues(alpha: 0.1)
                                       : Colors.grey.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -1433,7 +1433,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                                       ? Icons.nfc
                                       : Icons.bluetooth,
                                   color: device.isRfidReader
-                                      ? const Color(0xFF00BCD4)
+                                      ? const Color(0xFFE74C3C)
                                       : Colors.grey,
                                 ),
                               ),
@@ -1454,14 +1454,14 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF00BCD4).withValues(alpha: 0.1),
+                                        color: const Color(0xFFE74C3C).withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Text(
                                         'Hopeland',
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: Color(0xFF00BCD4),
+                                          color: Color(0xFFE74C3C),
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -1552,7 +1552,7 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
                                               : () => _connectToDevice(device),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: device.isRfidReader
-                                                ? const Color(0xFF00BCD4)
+                                                ? const Color(0xFFE74C3C)
                                                 : Colors.grey,
                                             foregroundColor: Colors.white,
                                             padding: const EdgeInsets.symmetric(
@@ -1621,3 +1621,4 @@ class _BluetoothConnectionSheetState extends State<_BluetoothConnectionSheet> {
     return Colors.red;
   }
 }
+

@@ -23,11 +23,11 @@ class _ResultadosScreenState extends State<ResultadosScreen> with SingleTickerPr
   late TabController _tabController;
   
   // Colores del tema
-  static const Color primaryColor = Color(0xFF00BCD4);
-  static const Color accentColor = Color(0xFF26C6DA);
+  static const Color primaryColor = Color(0xFFE74C3C);
+  static const Color accentColor = Color(0xFFF39C12);
   static const Color greenColor = Color(0xFF4CAF50);
-  static const Color orangeColor = Color(0xFFFF9800);
-  static const Color redColor = Color(0xFFF44336);
+  static const Color orangeColor = Color(0xFFF39C12);
+  static const Color redColor = Color(0xFFE74C3C);
 
   @override
   void initState() {
@@ -40,7 +40,7 @@ class _ResultadosScreenState extends State<ResultadosScreen> with SingleTickerPr
     final stats = widget.resultados.estadisticas;
     
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Resultados #${widget.inventarioId}'),
         elevation: 0,
@@ -87,66 +87,43 @@ class _ResultadosScreenState extends State<ResultadosScreen> with SingleTickerPr
   Widget _buildHeader(EstadisticasInventario stats) {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [primaryColor, accentColor],
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
-        ),
+      color: primaryColor.withValues(alpha: 0.05),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Info simple
+          Text(
+            'Ubicación: ${widget.ubicacionNombre}',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF666666)),
+          ),
+          const SizedBox(height: 12),
+          // Estadísticas en fila simple
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildSimpleStat('Encontrados', stats.encontrados.toString(), greenColor),
+              _buildSimpleStat('Faltantes', stats.faltantes.toString(), redColor),
+              _buildSimpleStat('Sobrantes', stats.sobrantes.toString(), orangeColor),
+            ],
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
-        child: Column(
-          children: [
-            // Ubicación
-            Row(
-              children: [
-                const Icon(Icons.location_on, color: Colors.white70, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  widget.ubicacionNombre,
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            
-            // Porcentaje de éxito
-            _buildSuccessRate(stats),
-            const SizedBox(height: 24),
-            
-            // Estadísticas en grid
-            Row(
-              children: [
-                Expanded(child: _buildStatCard(
-                  'Encontrados',
-                  stats.encontrados.toString(),
-                  Icons.check_circle_outline,
-                  greenColor,
-                )),
-                const SizedBox(width: 12),
-                Expanded(child: _buildStatCard(
-                  'Faltantes',
-                  stats.faltantes.toString(),
-                  Icons.error_outline,
-                  redColor,
-                )),
-                const SizedBox(width: 12),
-                Expanded(child: _buildStatCard(
-                  'Sobrantes',
-                  stats.sobrantes.toString(),
-                  Icons.add_circle_outline,
-                  orangeColor,
-                )),
-              ],
-            ),
-          ],
+    );
+  }
+
+  Widget _buildSimpleStat(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
         ),
-      ),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+        ),
+      ],
     );
   }
 
